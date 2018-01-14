@@ -597,7 +597,26 @@ public class DataPage {
                 " slots, but slot " + slot + " was requested for deletion.");
         }
 
-        // TODO:  Complete this implementation.
-        throw new UnsupportedOperationException("TODO:  Implement!");
+        final int tupleDataOffset = getSlotValue(dbPage, slot);
+        if (tupleDataOffset == EMPTY_SLOT) throw new IllegalArgumentException("Slot " + slot + "is already empty.");
+        deleteTupleDataRange(dbPage, tupleDataOffset, getTupleLength(dbPage, slot));
+        setSlotValue(dbPage, slot, EMPTY_SLOT);
+        // Reclaim unused header space if removing last slot
+        if (slot == numSlots - 1) compressHeader(dbPage);
+    }
+
+    /**
+     * Removes empty slots from the end of the header so that the space can
+     * be reclaimed. Empty slots which appear between non-empty slots will
+     * not be removed.
+     *
+     * @param dbPage the data page to compress header
+     */
+    private static void compressHeader(DBPage dbPage) {
+        int numSlots = getNumSlots(dbPage);
+        while (numSlots > 0 && getSlotValue(dbPage, numSlots - 1) == EMPTY_SLOT) {
+            numSlots--;
+        }
+        setNumSlots(dbPage, numSlots);
     }
 }
