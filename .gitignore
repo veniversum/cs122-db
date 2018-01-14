@@ -54,4 +54,4 @@ fabric.properties
 
 # Project specific files
 datafiles/
-testfiles/
+test_datafiles/
