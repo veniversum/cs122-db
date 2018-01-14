@@ -55,6 +55,7 @@ public class TestFileManager extends StorageTestCase {
         assert page0.readByte(0) == DBFileType.HEAP_TUPLE_FILE.getID();
         assert DBFile.decodePageSize(page0.readByte(1)) == DBFile.DEFAULT_PAGESIZE;
 
+        fileMgr.closeDBFile(dbf);
         fileMgr.deleteDBFile(dbf);
         assert !f.exists();
     }
@@ -84,6 +85,7 @@ public class TestFileManager extends StorageTestCase {
             // Success.
         }
 
+        fileMgr.closeDBFile(dbf);
         fileMgr.deleteDBFile(dbf);
         assert !f.exists();
     }
