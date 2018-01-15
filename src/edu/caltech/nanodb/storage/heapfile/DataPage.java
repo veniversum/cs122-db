@@ -598,7 +598,7 @@ public class DataPage {
         }
 
         final int tupleDataOffset = getSlotValue(dbPage, slot);
-        if (tupleDataOffset == EMPTY_SLOT) throw new IllegalArgumentException("Slot " + slot + "is already empty.");
+        if (tupleDataOffset == EMPTY_SLOT) throw new IllegalArgumentException("Slot " + slot + " is already empty.");
         deleteTupleDataRange(dbPage, tupleDataOffset, getTupleLength(dbPage, slot));
         setSlotValue(dbPage, slot, EMPTY_SLOT);
         // Reclaim unused header space if removing last slot
