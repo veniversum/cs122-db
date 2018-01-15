@@ -4,8 +4,6 @@ package edu.caltech.nanodb.storage;
 import edu.caltech.nanodb.expressions.TypeConverter;
 import edu.caltech.nanodb.relations.*;
 
-import java.util.Optional;
-
 
 /**
  * <p>
