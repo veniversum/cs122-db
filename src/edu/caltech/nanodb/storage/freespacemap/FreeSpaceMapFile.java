@@ -36,6 +36,8 @@ public abstract class FreeSpaceMapFile {
 
     public abstract int findSuitablePage(int requiredSize);
 
+    public abstract void updateFreeSpace(int pageNo, int freeSpace);
+
     /**
      * Returns the {@code DBFile} object that this free space map is stored in.
      *
