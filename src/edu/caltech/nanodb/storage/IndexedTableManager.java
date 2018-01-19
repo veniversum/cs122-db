@@ -139,12 +139,13 @@ public class IndexedTableManager implements TableManager {
         DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName, DBFileType.FREE_BITMAP_FILE, pageSize);
         logger.debug("Created new free space map DBFile for table " + tableName +
                 " at path " + freeSpaceDbFile.getDataFile());
-        FreeSpaceMapFileManager freeSpaceMapFileManager =
+        FreeSpaceMapFileManager fsmFileManager =
                 storageManager.getFreeSpaceMapFileManager(DBFileType.FREE_BITMAP_FILE);
-        FreeSpaceMapFile freeSpaceMapFile =  freeSpaceMapFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
+        FreeSpaceMapFile fsmFile =  fsmFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
+        tupleFile.setFsmFile(fsmFile);
 
         // Cache this table since it's now considered "open".
-        TableInfo tableInfo = new TableInfo(tableName, tupleFile, freeSpaceMapFile);
+        TableInfo tableInfo = new TableInfo(tableName, tupleFile, fsmFile);
         openTables.put(tableName, tableInfo);
 
         return tableInfo;
@@ -179,10 +180,11 @@ public class IndexedTableManager implements TableManager {
         String tblFileName = getTableFileName(tableName);
         String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
 
+        FreeSpaceMapFile fsmFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
         TupleFile tupleFile = storageManager.openTupleFile(tblFileName);
-        FreeSpaceMapFile freeSpaceMapFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
+        tupleFile.setFsmFile(fsmFile);
 
-        tableInfo = new TableInfo(tableName, tupleFile, freeSpaceMapFile);
+        tableInfo = new TableInfo(tableName, tupleFile, fsmFile);
 
         // Cache this table since it's now considered "open".
         openTables.put(tableName, tableInfo);

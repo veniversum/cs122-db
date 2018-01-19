@@ -4,7 +4,6 @@ package edu.caltech.nanodb.relations;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.TupleFile;
-import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFile;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 
 

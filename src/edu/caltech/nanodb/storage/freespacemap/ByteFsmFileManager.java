@@ -1,28 +1,22 @@
 package edu.caltech.nanodb.storage.freespacemap;
 
-import edu.caltech.nanodb.queryeval.TableStats;
-import edu.caltech.nanodb.relations.TableSchema;
 import edu.caltech.nanodb.storage.*;
 import edu.caltech.nanodb.storage.heapfile.HeaderPage;
-import edu.caltech.nanodb.storage.heapfile.HeapTupleFile;
-import edu.caltech.nanodb.storage.heapfile.HeapTupleFileManager;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
+public class ByteFsmFileManager implements FreeSpaceMapFileManager {
 
     /** A logging object for reporting anything interesting that happens. */
-    private static Logger logger = Logger.getLogger(FreeBitmapFileManager.class);
+    private static Logger logger = Logger.getLogger(ByteFsmFileManager.class);
 
 
     /** A reference to the storage manager. */
     private StorageManager storageManager;
 
 
-    public FreeBitmapFileManager(StorageManager storageManager) {
+    public ByteFsmFileManager(StorageManager storageManager) {
         if (storageManager == null)
             throw new IllegalArgumentException("storageManager cannot be null");
 
@@ -31,9 +25,9 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
     public FreeSpaceMapFile createFreeSpaceMapFile(DBFile dbFile) throws IOException {
 
-        logger.info(String.format("Initializing new free bitmap file %s", dbFile));
+        logger.info(String.format("Initializing new byte fsm file %s", dbFile));
 
-        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(this.storageManager, this, dbFile, new ArrayList<>());
+        FreeSpaceMapFile freeSpaceMapFile = new ByteFsmFile(this.storageManager, this, dbFile, new byte[65536], 0);
         saveFreeSpaceMapFile(freeSpaceMapFile);
         return freeSpaceMapFile;
     }
@@ -42,20 +36,18 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
     @Override
     public FreeSpaceMapFile openFreeSpaceMapFile(DBFile dbFile) throws IOException {
 
-        logger.info("Opening existing free bitmap file " + dbFile);
+        logger.info("Opening existing byte fsm file " + dbFile);
 
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
         PageReader reader = new PageReader(headerPage);
         reader.setPosition(HeaderPage.OFFSET_SCHEMA_START);
         int size = reader.readInt();
-        List<Boolean> bitmap = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            bitmap.set(i, reader.readBoolean());
-        }
+        byte[] freeSpaceMap = new byte[65536];
+        reader.read(freeSpaceMap, HeaderPage.OFFSET_SCHEMA_SIZE + 1, size);
 
         // TODO: Add reading from multiple pages
 
-        return new FreeBitmapFile(this.storageManager, this, dbFile, bitmap);
+        return new ByteFsmFile(this.storageManager, this, dbFile, freeSpaceMap, size);
     }
 
     @Override
@@ -64,25 +56,22 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
         if (freeSpaceMapFile == null)
             throw new IllegalArgumentException("freeSpaceMapFile cannot be null");
 
-        if (!(freeSpaceMapFile instanceof FreeBitmapFile)) {
+        if (!(freeSpaceMapFile instanceof ByteFsmFile)) {
             throw new IllegalArgumentException(
-                    "freeSpaceMapFile must be an instance of FreeBitmapFile");
+                    "freeSpaceMapFile must be an instance of ByteFsmFile");
         }
 
-        FreeBitmapFile bitmapFile = (FreeBitmapFile) freeSpaceMapFile;
+        ByteFsmFile byteFsmFile = (ByteFsmFile) freeSpaceMapFile;
 
         DBFile dbFile = freeSpaceMapFile.getDBFile();
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
 
         PageWriter pageWriter = new PageWriter(headerPage);
         pageWriter.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-        pageWriter.writeInt(bitmapFile.getBitmap().size());
+        pageWriter.writeInt(byteFsmFile.getMapSize());
+        pageWriter.write(byteFsmFile.getMap(), HeaderPage.OFFSET_SCHEMA_SIZE + 1, byteFsmFile.getMapSize());
 
-        for (boolean hasFreeSpace : bitmapFile.getBitmap()) {
-            pageWriter.writeBoolean(hasFreeSpace);
-        }
-
-        logger.debug("Wrote bitmap of size " + bitmapFile.getBitmap().size() + " to " + dbFile);
+        logger.debug("Wrote byte fsm of size " + byteFsmFile.getMapSize() + " to " + dbFile);
 
         // TODO: Write to multiple pages if needed.
 

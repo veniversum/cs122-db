@@ -8,10 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import org.apache.log4j.Logger;
 
-import edu.caltech.nanodb.queryeval.ColumnStats;
-import edu.caltech.nanodb.queryeval.ColumnStatsCollector;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.relations.TableSchema;
 import edu.caltech.nanodb.relations.Tuple;
@@ -62,6 +61,10 @@ public class HeapTupleFile implements TupleFile {
     private DBFile dbFile;
 
 
+    /** The file that stores the free space map. */
+    private FreeSpaceMapFile fsmFile;
+
+
     public HeapTupleFile(StorageManager storageManager,
                          HeapTupleFileManager heapFileManager, DBFile dbFile,
                          TableSchema schema, TableStats stats) {
@@ -87,7 +90,6 @@ public class HeapTupleFile implements TupleFile {
         this.stats = stats;
     }
 
-
     @Override
     public TupleFileManager getManager() {
         return heapFileManager;
@@ -104,6 +106,10 @@ public class HeapTupleFile implements TupleFile {
         return stats;
     }
 
+    @Override
+    public void setFsmFile(FreeSpaceMapFile fsmFile) {
+        this.fsmFile = fsmFile;
+    }
 
     public DBFile getDBFile() {
         return dbFile;
@@ -294,6 +300,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
     @Override
     public Tuple addTuple(Tuple tup) throws IOException {
 
+        if (fsmFile == null) throw new Error("fsmFile is not set!");
+
         /*
          * Check to see whether any constraints are violated by
          * adding this tuple
@@ -389,6 +397,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
     public void updateTuple(Tuple tup, Map<String, Object> newValues)
         throws IOException {
 
+        if (fsmFile == null) throw new Error("fsmFile is not set!");
+
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
                 "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
@@ -411,6 +421,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
     // Inherit interface-method documentation.
     @Override
     public void deleteTuple(Tuple tup) throws IOException {
+
+        if (fsmFile == null) throw new Error("fsmFile is not set!");
 
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(

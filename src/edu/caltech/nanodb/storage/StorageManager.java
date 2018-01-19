@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
-import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFileManager;
+import edu.caltech.nanodb.storage.freespacemap.ByteFsmFileManager;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
 import org.apache.log4j.Logger;
@@ -203,7 +203,7 @@ public class StorageManager {
      * This mapping is used to keep track of the free space map file managers
      * for all the kinds of free space map files we support.
      */
-    private HashMap<DBFileType, FreeBitmapFileManager> freeSpaceMapFileManagers =
+    private HashMap<DBFileType, ByteFsmFileManager> freeSpaceMapFileManagers =
             new HashMap<>();
 
 
@@ -261,7 +261,7 @@ public class StorageManager {
             new HeapTupleFileManager(this));
 
         freeSpaceMapFileManagers.put(DBFileType.FREE_BITMAP_FILE,
-                new FreeBitmapFileManager(this));
+                new ByteFsmFileManager(this));
 
         // TODO:  Register B-tree file-type here.
 

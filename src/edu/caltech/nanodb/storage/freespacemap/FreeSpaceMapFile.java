@@ -34,6 +34,8 @@ public abstract class FreeSpaceMapFile {
         return fsmFileManager;
     }
 
+    public abstract int findSuitablePage(int requiredSize);
+
     /**
      * Returns the {@code DBFile} object that this free space map is stored in.
      *
