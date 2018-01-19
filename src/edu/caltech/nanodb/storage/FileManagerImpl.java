@@ -203,10 +203,12 @@ public class FileManagerImpl implements FileManager {
         DBFile dbFile;
         try {
             dbFile = new DBFile(f, type, pageSize, fileContents);
-        }
-        catch (IllegalArgumentException iae) {
+        } catch (IllegalArgumentException iae) {
             throw new IOException("Invalid page size " + pageSize +
-                " specified for data file " + f, iae);
+                    " specified for data file " + f, iae);
+        } catch (Exception e) {
+            fileContents.close();
+            throw e;
         }
 
         logger.debug(String.format("Opened existing database file %s; " +
