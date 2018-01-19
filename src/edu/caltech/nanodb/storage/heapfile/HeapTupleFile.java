@@ -354,8 +354,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
                 logger.debug("Found space for new tuple in page " + pageNo + ".");
                 break;
             } else {
-                // Page didn't have enough space - bitmap has incorrect values.
-                // Update bitmap.
+                // Page didn't have enough space - free space map has incorrect values.
+                // Update free space map.
                 fsmFile.updateFreeSpace(pageNo, freeSpace);
             }
 
