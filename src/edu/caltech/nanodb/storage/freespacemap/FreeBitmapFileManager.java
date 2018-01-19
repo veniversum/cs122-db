@@ -9,6 +9,8 @@ import edu.caltech.nanodb.storage.heapfile.HeapTupleFileManager;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
@@ -31,7 +33,7 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
         logger.info(String.format("Initializing new free bitmap file %s", dbFile));
 
-        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(this, dbFile);
+        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(this.storageManager, this, dbFile, new ArrayList<>());
         saveFreeSpaceMapFile(freeSpaceMapFile);
         return freeSpaceMapFile;
     }
@@ -42,24 +44,18 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
         logger.info("Opening existing free bitmap file " + dbFile);
 
-        return null; // TODO: Implement opening free bitmap from dbFile.
+        DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
+        PageReader reader = new PageReader(headerPage);
+        reader.setPosition(0);
+        int size = reader.readInt();
+        List<Boolean> bitmap = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            bitmap.set(i, reader.readBoolean());
+        }
 
-//        // Table schema is stored into the header page, so get it and prepare
-//        // to write out the schema information.
-//        DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
-//        PageReader hpReader = new PageReader(headerPage);
-//        // Skip past the page-size value.
-//        hpReader.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-//
-//        // Read in the schema details.
-//        SchemaWriter schemaWriter = new SchemaWriter();
-//        TableSchema schema = schemaWriter.readTableSchema(hpReader);
-//
-//        // Read in the statistics.
-//        StatsWriter statsWriter = new StatsWriter();
-//        TableStats stats = statsWriter.readTableStats(hpReader, schema);
-//
-//        return new HeapTupleFile(storageManager, this, dbFile, schema, stats);
+        // TODO: Add reading from multiple pages
+
+        return new FreeBitmapFile(this.storageManager, this, dbFile, bitmap);
     }
 
     @Override
@@ -68,43 +64,28 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
         if (freeSpaceMapFile == null)
             throw new IllegalArgumentException("freeSpaceMapFile cannot be null");
 
-        // TODO: Implement saving free bitmap file.
+        if (!(freeSpaceMapFile instanceof FreeBitmapFile)) {
+            throw new IllegalArgumentException(
+                    "freeSpaceMapFile must be an instance of FreeBitmapFile");
+        }
 
-//        // Curiously, we never cast the tupleFile reference to HeapTupleFile,
-//        // but still, it would be very awkward if we tried to update the
-//        // metadata of some different kind of tuple file...
-//        if (!(freeSpaceMapFile instanceof HeapTupleFile)) {
-//            throw new IllegalArgumentException(
-//                    "tupleFile must be an instance of HeapTupleFile");
-//        }
-//
-//        DBFile dbFile = freeSpaceMapFile.getDBFile();
-//
-//        TableSchema schema = freeSpaceMapFile.getSchema();
-//        TableStats stats = freeSpaceMapFile.getStats();
-//
-//        // Table schema is stored into the header page, so get it and prepare
-//        // to write out the schema information.
-//        DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
-//        PageWriter hpWriter = new PageWriter(headerPage);
-//        // Skip past the page-size value.
-//        hpWriter.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-//
-//        // Write out the schema details now.
-//        SchemaWriter schemaWriter = new SchemaWriter();
-//        schemaWriter.writeTableSchema(schema, hpWriter);
-//
-//        // Compute and store the schema's size.
-//        int schemaEndPos = hpWriter.getPosition();
-//        int schemaSize = schemaEndPos - HeaderPage.OFFSET_SCHEMA_START;
-//        HeaderPage.setSchemaSize(headerPage, schemaSize);
-//
-//        // Write in empty statistics, so that the values are at least
-//        // initialized to something.
-//        StatsWriter statsWriter = new StatsWriter();
-//        statsWriter.writeTableStats(schema, stats, hpWriter);
-//        int statsSize = hpWriter.getPosition() - schemaEndPos;
-//        HeaderPage.setStatsSize(headerPage, statsSize);
+        FreeBitmapFile bitmapFile = (FreeBitmapFile) freeSpaceMapFile;
+
+        DBFile dbFile = freeSpaceMapFile.getDBFile();
+        DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
+        PageWriter pageWriter = new PageWriter(headerPage);
+        pageWriter.setPosition(0);
+
+        pageWriter.writeInt(bitmapFile.getBitmap().size());
+
+        for (boolean hasFreeSpace : bitmapFile.getBitmap()) {
+            pageWriter.writeBoolean(hasFreeSpace);
+        }
+
+        logger.debug("Wrote bitmap of size " + bitmapFile.getBitmap().size() + " to " + dbFile);
+
+        // TODO: Write to multiple pages if needed.
+
     }
 
     @Override

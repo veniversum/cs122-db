@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFile;
-import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFileManager;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
 import org.apache.log4j.Logger;
@@ -110,8 +108,6 @@ public class IndexedTableManager implements TableManager {
             }
         }
 
-        String tblFileName = getTableFileName(tableName);
-        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
 
         DBFileType type;
         if ("heap".equals(storageType)) {
@@ -124,22 +120,27 @@ public class IndexedTableManager implements TableManager {
             throw new IllegalArgumentException("Unrecognized table file " +
                 "type:  " + storageType);
         }
-        TupleFileManager tupleFileManager = storageManager.getTupleFileManager(type);
-        FreeSpaceMapFileManager freeSpaceMapFileManager = new FreeBitmapFileManager(storageManager);
 
         // First, create a new DBFile that the tuple file will go into.
         FileManager fileManager = storageManager.getFileManager();
+        String tblFileName = getTableFileName(tableName);
         DBFile tableDbFile = fileManager.createDBFile(tblFileName, type, pageSize);
-        DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName, DBFileType.FREE_SPACE_MAP_FILE, pageSize);
 
         logger.debug("Created new DBFile for table " + tableName +
                 " at path " + tableDbFile.getDataFile());
-        logger.debug("Created new free space map DBFile for table " + tableName +
-                " at path " + freeSpaceDbFile.getDataFile());
 
         // Now, initialize it to be a tuple file with the specified type and
         // schema.
+        TupleFileManager tupleFileManager = storageManager.getTupleFileManager(type);
         TupleFile tupleFile = tupleFileManager.createTupleFile(tableDbFile, schema);
+
+        // Create a free space map DB file
+        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
+        DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName, DBFileType.FREE_BITMAP_FILE, pageSize);
+        logger.debug("Created new free space map DBFile for table " + tableName +
+                " at path " + freeSpaceDbFile.getDataFile());
+        FreeSpaceMapFileManager freeSpaceMapFileManager =
+                storageManager.getFreeSpaceMapFileManager(DBFileType.FREE_BITMAP_FILE);
         FreeSpaceMapFile freeSpaceMapFile =  freeSpaceMapFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
 
         // Cache this table since it's now considered "open".
@@ -158,7 +159,7 @@ public class IndexedTableManager implements TableManager {
         manager.saveMetadata(tupleFile);
 
         FreeSpaceMapFile freeSpaceMapFile = tableInfo.getFreeSpaceMapFile();
-        FreeSpaceMapFileManager freeSpaceMapFileManager = freeSpaceMapFile.getFreeSpaceMapFileManager();
+        FreeSpaceMapFileManager freeSpaceMapFileManager = freeSpaceMapFile.getFsmFileManager();
         freeSpaceMapFileManager.saveFreeSpaceMapFile(freeSpaceMapFile);
     }
 
@@ -176,8 +177,12 @@ public class IndexedTableManager implements TableManager {
         // Open the data file for the table; read out its type and page-size.
 
         String tblFileName = getTableFileName(tableName);
+        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
+
         TupleFile tupleFile = storageManager.openTupleFile(tblFileName);
-        tableInfo = new TableInfo(tableName, tupleFile);
+        FreeSpaceMapFile freeSpaceMapFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
+
+        tableInfo = new TableInfo(tableName, tupleFile, freeSpaceMapFile);
 
         // Cache this table since it's now considered "open".
         openTables.put(tableName, tableInfo);
@@ -203,11 +208,14 @@ public class IndexedTableManager implements TableManager {
         // Remove this table from the cache since it's about to be closed.
         openTables.remove(tableInfo.getTableName());
 
-        DBFile dbFile = tableInfo.getTupleFile().getDBFile();
+        DBFile tableDbFile = tableInfo.getTupleFile().getDBFile();
+        DBFile freeSpaceMapDbFile = tableInfo.getFreeSpaceMapFile().getDBFile();
 
         // Flush all open pages for the table.
-        storageManager.getBufferManager().flushDBFile(dbFile);
-        storageManager.getFileManager().closeDBFile(dbFile);
+        storageManager.getBufferManager().flushDBFile(tableDbFile);
+        storageManager.getFileManager().closeDBFile(tableDbFile);
+        storageManager.getBufferManager().flushDBFile(freeSpaceMapDbFile);
+        storageManager.getFileManager().closeDBFile(freeSpaceMapDbFile);
     }
 
 
@@ -224,7 +232,10 @@ public class IndexedTableManager implements TableManager {
         closeTable(tableInfo);
 
         String tblFileName = getTableFileName(tableName);
+        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
+
         storageManager.getFileManager().deleteDBFile(tblFileName);
+        storageManager.getFileManager().deleteDBFile(freeSpaceMapFileName);
     }
 
 

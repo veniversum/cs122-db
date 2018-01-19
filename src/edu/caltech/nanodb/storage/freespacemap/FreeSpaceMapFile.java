@@ -1,28 +1,37 @@
 package edu.caltech.nanodb.storage.freespacemap;
 
 import edu.caltech.nanodb.storage.DBFile;
+import edu.caltech.nanodb.storage.StorageManager;
 
 public abstract class FreeSpaceMapFile {
 
-    private FreeSpaceMapFileManager freeSpaceMapFileManager;
+    private StorageManager storageManager;
+
+    private FreeSpaceMapFileManager fsmFileManager;
 
     /** File that stores the free space bitmap. */
     private DBFile dbFile;
 
-    FreeSpaceMapFile(FreeSpaceMapFileManager freeSpaceMapFileManager, DBFile dbFile) {
+    FreeSpaceMapFile(StorageManager storageManager, FreeSpaceMapFileManager fsmFileManager, DBFile dbFile) {
 
-        if (freeSpaceMapFileManager == null)
-            throw new IllegalArgumentException("freeSpaceMapFileManager cannot be null");
-
+        if (storageManager == null)
+            throw new IllegalArgumentException("storageManager cannot be null");
+        if (fsmFileManager == null)
+            throw new IllegalArgumentException("fsmFileManager cannot be null");
         if (dbFile == null)
             throw new IllegalArgumentException("dbFile cannot be null");
 
-        this.freeSpaceMapFileManager = freeSpaceMapFileManager;
+        this.storageManager = storageManager;
+        this.fsmFileManager = fsmFileManager;
         this.dbFile = dbFile;
     }
 
-    public FreeSpaceMapFileManager getFreeSpaceMapFileManager() {
-        return freeSpaceMapFileManager;
+    public StorageManager getStorageManager() {
+        return storageManager;
+    }
+
+    public FreeSpaceMapFileManager getFsmFileManager() {
+        return fsmFileManager;
     }
 
     /**
@@ -30,7 +39,7 @@ public abstract class FreeSpaceMapFile {
      *
      * @return the {@code DBFile} object that this free space map is stored in.
      */
-    public DBFile getDbFile() {
+    public DBFile getDBFile() {
         return dbFile;
     }
 
