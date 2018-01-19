@@ -205,6 +205,7 @@ public class IndexedTableManager implements TableManager {
                     storageManager.getFreeSpaceMapFileManager(DBFileType.BYTE_FSM_FILE);
             fsmFile = fsmFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
             fsmFile.rebuild(tupleFile);
+            fsmFile.getFsmFileManager().saveFreeSpaceMapFile(fsmFile);
         }
 
         tupleFile.setFsmFile(fsmFile);
