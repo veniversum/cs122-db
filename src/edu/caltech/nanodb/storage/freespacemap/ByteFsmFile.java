@@ -156,5 +156,8 @@ public class ByteFsmFile extends FreeSpaceMapFile {
 
         mapSize = pageNo;
         checksum = calculateChecksum();
+
+        logger.debug("Rebuilt FSM file, new size: " + mapSize);
+
     }
 }

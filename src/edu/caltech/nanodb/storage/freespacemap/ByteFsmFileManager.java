@@ -43,8 +43,8 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
         PageReader reader = new PageReader(headerPage);
         reader.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-        int mapSize = reader.readInt();
         long checksum = reader.readLong();
+        int mapSize = reader.readInt();
         int pageSize = dbFile.getPageSize();
         byte[] map = new byte[65536];
 
