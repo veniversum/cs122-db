@@ -327,7 +327,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         // Search for a page to put the tuple in.  If we hit the end of the
         // data file, create a new page.
-        int pageNo = fsmFile.findSuitablePage(tupSize + 2);
+        int pageNo = fsmFile.findClosestSuitablePage(tupSize + 2, dbFile.getLastAccessedPageNo());
         DBPage dbPage = null;
         while (true) {
             // Try to load the page without creating a new one.
@@ -362,7 +362,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             // If we reached this point then the page doesn't have enough
             // space, so go on to the next data page.
             dbPage = null;  // So the next section will work properly.
-            pageNo = fsmFile.findSuitablePage(tupSize + 2);
+            pageNo = fsmFile.findClosestSuitablePage(tupSize + 2, dbFile.getLastAccessedPageNo());
         }
 
         if (dbPage == null) {

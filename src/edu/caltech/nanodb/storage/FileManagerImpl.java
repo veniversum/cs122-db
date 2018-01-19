@@ -232,6 +232,7 @@ public class FileManagerImpl implements FileManager {
 
         // Update our file-IO performance counters
         updateFileIOPerfStats(dbFile, pageNo, /* read */ true, buffer.length);
+        dbFile.setLastAccessedPageNo(pageNo);
 
         long pageStart = getPageStart(dbFile, pageNo);
 
@@ -302,6 +303,7 @@ public class FileManagerImpl implements FileManager {
 
         // Update our file-IO performance counters
         updateFileIOPerfStats(dbFile, pageNo, /* read */ false, buffer.length);
+        dbFile.setLastAccessedPageNo(pageNo);
 
         long pageStart = getPageStart(dbFile, pageNo);
 

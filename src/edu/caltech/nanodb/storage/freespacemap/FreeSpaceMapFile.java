@@ -39,6 +39,8 @@ public abstract class FreeSpaceMapFile {
 
     public abstract int findSuitablePage(int requiredSize);
 
+    public abstract int findClosestSuitablePage(final int requiredSize, final int currentPageNo);
+
     public abstract void updateFreeSpace(int pageNo, int freeSpace);
 
     public abstract boolean checkIntegrity();

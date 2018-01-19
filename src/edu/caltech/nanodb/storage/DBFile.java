@@ -59,6 +59,7 @@ public class DBFile {
     /** The type of the data file. */
     private DBFileType type;
 
+    private int lastAccessedPageNo = 0;
 
     /**
      * This is the size of pages that are read and written to the data file.
@@ -307,5 +308,13 @@ public class DBFile {
      */
     public RandomAccessFile getFileContents() {
         return fileContents;
+    }
+
+    public int getLastAccessedPageNo() {
+        return lastAccessedPageNo;
+    }
+
+    public void setLastAccessedPageNo(int lastAccessedPageNo) {
+        this.lastAccessedPageNo = lastAccessedPageNo;
     }
 }

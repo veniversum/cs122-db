@@ -84,6 +84,33 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         return this.mapSize + 1;
     }
 
+    /**
+     * Finds the closest page to <code>currentPageNo</code> in the <code>DBFile</code> that
+     * has free space greater than <code>requiredSize</code>.
+     *
+     * @param requiredSize  required free space for data
+     * @param currentPageNo current page number
+     * @return pageNo of the page with free space
+     */
+    public int findClosestSuitablePage(final int requiredSize, final int currentPageNo) {
+        float freeSpaceFraction = multiplier * requiredSize;
+        for (int i = 0; i < this.mapSize; i++) {
+            final int idxLeft = currentPageNo - i - 1;
+            final int idxRight = currentPageNo + i - 1;
+            boolean eof = true;
+            if (idxLeft >= 0 && idxLeft < mapSize) {
+                eof = false;
+                if (freeSpaceFraction < unsignedByteToInt(this.map[idxLeft])) return idxLeft + 1;
+            }
+            if (idxRight >= 0 && idxRight < mapSize) {
+                eof = false;
+                if (freeSpaceFraction < unsignedByteToInt(this.map[idxRight])) return idxRight + 1;
+            }
+            if (eof) break;
+        }
+        return this.mapSize + 1;
+    }
+
 
     /**
      * Updates the amount of free space in a page.
