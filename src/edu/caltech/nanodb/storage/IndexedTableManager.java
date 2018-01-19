@@ -192,12 +192,27 @@ public class IndexedTableManager implements TableManager {
         String tblFileName = getTableFileName(tableName);
         TupleFile tupleFile = storageManager.openTupleFile(tblFileName);
 
-        FreeSpaceMapFile fsmFile;
+        FreeSpaceMapFile fsmFile = null;
         String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
+        boolean prepareNewFsmFile = false;
         if (tableHasFsmFile(tableName)) {
-            fsmFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
-            if (!fsmFile.checkIntegrity()) fsmFile.rebuild(tupleFile);
+            try {
+                fsmFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
+                if (!fsmFile.checkIntegrity()) {
+                    logger.debug("Free space map for table " + tableName + " has bad checksum - rebuilding.");
+                    fsmFile.rebuild(tupleFile);
+                }
+            } catch (IllegalStateException ise) {
+                logger.debug("Free space map for table " + tableName + " is corrupted - creating new one.");
+                prepareNewFsmFile = true;
+                storageManager.getFileManager().deleteDBFile(freeSpaceMapFileName);
+            }
         } else {
+            logger.debug("Free space map for table " + tableName + " does not exist - creating new one.");
+            prepareNewFsmFile = true;
+        }
+
+        if (prepareNewFsmFile) {
             FileManager fileManager = storageManager.getFileManager();
             DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName,
                     DBFileType.BYTE_FSM_FILE, tupleFile.getDBFile().getPageSize());

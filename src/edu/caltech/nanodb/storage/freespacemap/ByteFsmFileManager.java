@@ -44,11 +44,12 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
         PageReader reader = new PageReader(headerPage);
         reader.setPosition(HeaderPage.OFFSET_SCHEMA_START);
         int mapSize = reader.readInt();
+        long checksum = reader.readLong();
         int pageSize = dbFile.getPageSize();
         byte[] map = new byte[65536];
 
         // Read as much of the map as possible from the remainder of the header page
-        int headerPageLeftover = pageSize - 10;
+        int headerPageLeftover = pageSize - 18;
         reader.read(map, 0, Math.min(mapSize, headerPageLeftover));
 
 
@@ -68,7 +69,7 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
 
         logger.debug("Read byte fsm of size " + mapSize + " (" + pageNo + " pages) from " + dbFile);
 
-        return new ByteFsmFile(this.storageManager, this, dbFile, map, mapSize);
+        return new ByteFsmFile(this.storageManager, this, dbFile, map, mapSize, checksum);
     }
 
     @Override
@@ -92,10 +93,11 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
         PageWriter pageWriter = new PageWriter(headerPage);
         pageWriter.setPosition(HeaderPage.OFFSET_SCHEMA_START);
+        pageWriter.writeLong(byteFsmFile.getChecksum());
         pageWriter.writeInt(mapSize);
 
         // Write as much of the map as possible into the remainder of the header page
-        int headerPageLeftover = pageSize - 10;
+        int headerPageLeftover = pageSize - 18;
 
         pageWriter.write(map, 0, Math.min(mapSize, headerPageLeftover));
 

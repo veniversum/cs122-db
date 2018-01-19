@@ -9,6 +9,8 @@ import org.apache.log4j.Logger;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 /**
  * Free space map implementation for tracking free space in a
@@ -26,6 +28,7 @@ public class ByteFsmFile extends FreeSpaceMapFile {
     private int mapSize;
     final private int tupleFilePageSize;
     final private float multiplier;
+    private long checksum;
 
     public ByteFsmFile(StorageManager storageManager, ByteFsmFileManager byteFsmFileManager,
                        DBFile dbFile, byte[] map, int mapSize) {
@@ -35,18 +38,34 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         this.mapSize = mapSize;
         this.tupleFilePageSize = dbFile.getPageSize();
         this.multiplier = 256.0f / this.tupleFilePageSize;
+        this.checksum = calculateChecksum();
+    }
+
+    public ByteFsmFile(StorageManager storageManager, ByteFsmFileManager byteFsmFileManager,
+                       DBFile dbFile, byte[] map, int mapSize, long checksum) {
+        super(storageManager, byteFsmFileManager, dbFile);
+
+        this.map = map;
+        this.mapSize = mapSize;
+        this.tupleFilePageSize = dbFile.getPageSize();
+        this.multiplier = 256.0f / this.tupleFilePageSize;
+        this.checksum = checksum;
     }
 
     public byte[] getMap() {
         return map;
     }
 
-    private static int unsignedByteToInt(final byte b) {
-        return b & 0xFF;
+    public long getChecksum() {
+        return checksum;
     }
 
     public int getMapSize() {
         return mapSize;
+    }
+
+    private static int unsignedByteToInt(final byte b) {
+        return b & 0xFF;
     }
 
     /**
@@ -76,12 +95,18 @@ public class ByteFsmFile extends FreeSpaceMapFile {
     public void updateFreeSpace(final int pageNo, final int freeSpace) {
         byte freeSpaceFraction = (byte) Math.floor(freeSpace * multiplier);
         map[pageNo - 1] = freeSpaceFraction;
-        if (pageNo > this.mapSize) this.mapSize++;
+        if (pageNo > mapSize) mapSize++;
+    }
+
+    private long calculateChecksum() {
+        Checksum checksum = new CRC32();
+        checksum.update(map, 0, mapSize);
+        return checksum.getValue();
     }
 
     @Override
     public boolean checkIntegrity() {
-        return true;
+        return calculateChecksum() == checksum;
     }
 
     @Override
@@ -101,6 +126,8 @@ public class ByteFsmFile extends FreeSpaceMapFile {
             }
             pageNo++;
         }
-        this.mapSize = pageNo;
+
+        mapSize = pageNo;
+        checksum = calculateChecksum();
     }
 }
