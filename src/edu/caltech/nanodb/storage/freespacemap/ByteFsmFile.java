@@ -5,16 +5,21 @@ import edu.caltech.nanodb.storage.StorageManager;
 import org.apache.log4j.Logger;
 
 /**
- * Class managing a free space map file for a particular table.
+ * Free space map implementation for tracking free space in a
+ * <code>DBFile</code>.
+ *
+ * A byte is used for each page in the <code>DBFile</code>, allowing
+ * for tupleFilePageSize / 265 granularity in the amount of free
+ * space we can store.
  */
 public class ByteFsmFile extends FreeSpaceMapFile {
 
     private static Logger logger = Logger.getLogger(ByteFsmFile.class);
 
-    private byte[] map;
+    final private byte[] map;
     private int mapSize;
-    private int tupleFilePageSize;
-    private float multiplier;
+    final private int tupleFilePageSize;
+    final private float multiplier;
 
     public ByteFsmFile(StorageManager storageManager, ByteFsmFileManager byteFsmFileManager,
                        DBFile dbFile, byte[] map, int mapSize) {
@@ -30,7 +35,7 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         return map;
     }
 
-    static int bytesToUnsigned(byte b) {
+    private static int unsignedByteToInt(final byte b) {
         return b & 0xFF;
     }
 
@@ -38,17 +43,31 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         return mapSize;
     }
 
+    /**
+     * Finds the first page in the <code>DBFile</code> that
+     * has free space greater than <code>requiredSize</code>.
+     *
+     * @param requiredSize required free space for data
+     * @return pageNo of the page with free space
+     */
     @Override
-    public int findSuitablePage(int requiredSize) {
-        float freeSpaceFraction = (float) requiredSize * multiplier;
+    public int findSuitablePage(final int requiredSize) {
+        float freeSpaceFraction = multiplier * requiredSize;
         for (int i = 0; i < this.mapSize; i++) {
-            if (freeSpaceFraction < bytesToUnsigned(this.map[i])) return i + 1;
+            if (freeSpaceFraction < unsignedByteToInt(this.map[i])) return i + 1;
         }
         return this.mapSize + 1;
     }
 
+
+    /**
+     * Updates the amount of free space in a page.
+     *
+     * @param pageNo    pageNo of the page to update
+     * @param freeSpace amount of free space in page
+     */
     @Override
-    public void updateFreeSpace(int pageNo, int freeSpace) {
+    public void updateFreeSpace(final int pageNo, final int freeSpace) {
         byte freeSpaceFraction = (byte) Math.floor(freeSpace * multiplier);
         map[pageNo - 1] = freeSpaceFraction;
         if (pageNo > this.mapSize) this.mapSize++;
