@@ -2,10 +2,13 @@ package edu.caltech.nanodb.storage.freespacemap;
 
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.StorageManager;
+import edu.caltech.nanodb.storage.TupleFile;
+
+import java.io.IOException;
 
 public abstract class FreeSpaceMapFile {
 
-    private StorageManager storageManager;
+    protected StorageManager storageManager;
 
     private FreeSpaceMapFileManager fsmFileManager;
 
@@ -37,6 +40,10 @@ public abstract class FreeSpaceMapFile {
     public abstract int findSuitablePage(int requiredSize);
 
     public abstract void updateFreeSpace(int pageNo, int freeSpace);
+
+    public abstract boolean checkIntegrity();
+
+    public abstract void rebuild(TupleFile tupleFile) throws IOException;
 
     /**
      * Returns the {@code DBFile} object that this free space map is stored in.

@@ -1,8 +1,14 @@
 package edu.caltech.nanodb.storage.freespacemap;
 
 import edu.caltech.nanodb.storage.DBFile;
+import edu.caltech.nanodb.storage.DBPage;
 import edu.caltech.nanodb.storage.StorageManager;
+import edu.caltech.nanodb.storage.TupleFile;
+import edu.caltech.nanodb.storage.heapfile.DataPage;
 import org.apache.log4j.Logger;
+
+import java.io.EOFException;
+import java.io.IOException;
 
 /**
  * Free space map implementation for tracking free space in a
@@ -71,5 +77,30 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         byte freeSpaceFraction = (byte) Math.floor(freeSpace * multiplier);
         map[pageNo - 1] = freeSpaceFraction;
         if (pageNo > this.mapSize) this.mapSize++;
+    }
+
+    @Override
+    public boolean checkIntegrity() {
+        return true;
+    }
+
+    @Override
+    public void rebuild(TupleFile tupleFile) throws IOException {
+
+        DBFile tupleDbFile = tupleFile.getDBFile();
+        int pageNo = 1;
+        while (true) {
+            try {
+                DBPage dbPage = storageManager.loadDBPage(tupleDbFile, pageNo);
+                int freeSpace = DataPage.getFreeSpaceInPage(dbPage);
+                byte freeSpaceFraction = (byte) Math.floor(freeSpace * multiplier);
+                map[pageNo - 1] = freeSpaceFraction;
+            } catch (EOFException eofe) {
+                // Reached the end of file, done building.
+                break;
+            }
+            pageNo++;
+        }
+        this.mapSize = pageNo;
     }
 }

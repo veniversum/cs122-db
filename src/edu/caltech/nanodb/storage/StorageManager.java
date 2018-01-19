@@ -393,7 +393,6 @@ public class StorageManager {
         return tfManager.openTupleFile(dbFile);
     }
 
-
     public FreeSpaceMapFile openFreeSpaceMapFile(String filename) throws IOException {
         DBFile dbFile = fileManager.openDBFile(filename);
         DBFileType type = dbFile.getType();

@@ -81,6 +81,13 @@ public class IndexedTableManager implements TableManager {
         return fileManager.fileExists(tblFileName);
     }
 
+    private boolean tableHasFsmFile(String tableName) throws IOException {
+        String tblFileName = getFreeSpaceMapFileName(tableName);
+        FileManager fileManager = storageManager.getFileManager();
+
+        return fileManager.fileExists(tblFileName);
+    }
+
 
     // Inherit interface docs.
     @Override
@@ -183,10 +190,23 @@ public class IndexedTableManager implements TableManager {
         // Open the data file for the table; read out its type and page-size.
 
         String tblFileName = getTableFileName(tableName);
-        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
-
-        FreeSpaceMapFile fsmFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
         TupleFile tupleFile = storageManager.openTupleFile(tblFileName);
+
+        FreeSpaceMapFile fsmFile;
+        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
+        if (tableHasFsmFile(tableName)) {
+            fsmFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
+            if (!fsmFile.checkIntegrity()) fsmFile.rebuild(tupleFile);
+        } else {
+            FileManager fileManager = storageManager.getFileManager();
+            DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName,
+                    DBFileType.BYTE_FSM_FILE, tupleFile.getDBFile().getPageSize());
+            FreeSpaceMapFileManager fsmFileManager =
+                    storageManager.getFreeSpaceMapFileManager(DBFileType.BYTE_FSM_FILE);
+            fsmFile = fsmFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
+            fsmFile.rebuild(tupleFile);
+        }
+
         tupleFile.setFsmFile(fsmFile);
 
         tableInfo = new TableInfo(tableName, tupleFile, fsmFile);
