@@ -87,6 +87,13 @@ public class TableInfo {
     }
 
 
+    /**
+     * @return the table's free space map file.
+     */
+    public FreeSpaceMapFile getFreeSpaceMapFile() {
+        return freeSpaceMapFile;
+    }
+
     /** A helper function to simplify retrieving the table's {@code DBFile}. */
     public DBFile getDBFile() {
         return tupleFile.getDBFile();

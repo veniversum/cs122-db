@@ -7,8 +7,8 @@ import edu.caltech.nanodb.storage.DBFile;
  */
 public class FreeBitmapFile extends FreeSpaceMapFile {
 
-    public FreeBitmapFile(DBFile dbFile) {
-        super(dbFile);
+    public FreeBitmapFile(FreeBitmapFileManager freeBitmapFileManager, DBFile dbFile) {
+        super(freeBitmapFileManager, dbFile);
     }
 
 }

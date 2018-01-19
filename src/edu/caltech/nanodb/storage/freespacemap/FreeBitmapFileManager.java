@@ -31,7 +31,7 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
         logger.info(String.format("Initializing new free bitmap file %s", dbFile));
 
-        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(dbFile);
+        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(this, dbFile);
         saveFreeSpaceMapFile(freeSpaceMapFile);
         return freeSpaceMapFile;
     }

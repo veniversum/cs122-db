@@ -156,6 +156,10 @@ public class IndexedTableManager implements TableManager {
         TupleFile tupleFile = tableInfo.getTupleFile();
         TupleFileManager manager = tupleFile.getManager();
         manager.saveMetadata(tupleFile);
+
+        FreeSpaceMapFile freeSpaceMapFile = tableInfo.getFreeSpaceMapFile();
+        FreeSpaceMapFileManager freeSpaceMapFileManager = freeSpaceMapFile.getFreeSpaceMapFileManager();
+        freeSpaceMapFileManager.saveFreeSpaceMapFile(freeSpaceMapFile);
     }
 
 
