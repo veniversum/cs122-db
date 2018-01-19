@@ -46,7 +46,7 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
         PageReader reader = new PageReader(headerPage);
-        reader.setPosition(0);
+        reader.setPosition(HeaderPage.OFFSET_SCHEMA_START);
         int size = reader.readInt();
         List<Boolean> bitmap = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -73,9 +73,9 @@ public class FreeBitmapFileManager implements FreeSpaceMapFileManager {
 
         DBFile dbFile = freeSpaceMapFile.getDBFile();
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
-        PageWriter pageWriter = new PageWriter(headerPage);
-        pageWriter.setPosition(0);
 
+        PageWriter pageWriter = new PageWriter(headerPage);
+        pageWriter.setPosition(HeaderPage.OFFSET_SCHEMA_START);
         pageWriter.writeInt(bitmapFile.getBitmap().size());
 
         for (boolean hasFreeSpace : bitmapFile.getBitmap()) {
