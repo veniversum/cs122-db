@@ -57,7 +57,7 @@ public class IndexedTableManager implements TableManager {
      * @return the name of the file that holds the table's free space map
      */
     private String getFreeSpaceMapFileName(String tableName) {
-        return tableName + ".map";
+        return tableName + ".fsm";
     }
 
     @Override
