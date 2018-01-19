@@ -9,7 +9,9 @@ import java.util.HashSet;
 import java.util.List;
 
 import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFileManager;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.commands.CommandProperties;
@@ -123,6 +125,7 @@ public class IndexedTableManager implements TableManager {
                 "type:  " + storageType);
         }
         TupleFileManager tupleFileManager = storageManager.getTupleFileManager(type);
+        FreeSpaceMapFileManager freeSpaceMapFileManager = new FreeBitmapFileManager(storageManager);
 
         // First, create a new DBFile that the tuple file will go into.
         FileManager fileManager = storageManager.getFileManager();
@@ -137,7 +140,7 @@ public class IndexedTableManager implements TableManager {
         // Now, initialize it to be a tuple file with the specified type and
         // schema.
         TupleFile tupleFile = tupleFileManager.createTupleFile(tableDbFile, schema);
-        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(freeSpaceDbFile);
+        FreeSpaceMapFile freeSpaceMapFile =  freeSpaceMapFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
 
         // Cache this table since it's now considered "open".
         TableInfo tableInfo = new TableInfo(tableName, tupleFile, freeSpaceMapFile);
