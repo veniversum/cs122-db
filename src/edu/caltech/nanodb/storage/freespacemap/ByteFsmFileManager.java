@@ -93,7 +93,7 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
         PageWriter pageWriter = new PageWriter(headerPage);
         pageWriter.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-        pageWriter.writeLong(byteFsmFile.getChecksum());
+        pageWriter.writeLong(byteFsmFile.calculateChecksum());
         pageWriter.writeInt(mapSize);
 
         // Write as much of the map as possible into the remainder of the header page

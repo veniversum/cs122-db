@@ -56,10 +56,6 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         return map;
     }
 
-    public long getChecksum() {
-        return checksum;
-    }
-
     public int getMapSize() {
         return mapSize;
     }
@@ -125,7 +121,7 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         if (pageNo > mapSize) mapSize++;
     }
 
-    private long calculateChecksum() {
+    public long calculateChecksum() {
         Checksum checksum = new CRC32();
         checksum.update(map, 0, mapSize);
         return checksum.getValue();
