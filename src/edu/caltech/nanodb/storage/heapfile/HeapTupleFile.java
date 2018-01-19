@@ -1,35 +1,26 @@
 package edu.caltech.nanodb.storage.heapfile;
 
 
-import java.io.EOFException;
-import java.io.IOException;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.log4j.Logger;
-
-import edu.caltech.nanodb.queryeval.ColumnStats;
-import edu.caltech.nanodb.queryeval.ColumnStatsCollector;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.relations.TableSchema;
 import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.storage.*;
+import org.apache.log4j.Logger;
 
-import edu.caltech.nanodb.storage.DBFile;
-import edu.caltech.nanodb.storage.DBPage;
-import edu.caltech.nanodb.storage.FilePointer;
-import edu.caltech.nanodb.storage.TupleFile;
-import edu.caltech.nanodb.storage.InvalidFilePointerException;
-import edu.caltech.nanodb.storage.PageTuple;
-import edu.caltech.nanodb.storage.StorageManager;
-import edu.caltech.nanodb.storage.TupleFileManager;
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 
 /**
  * This class implements the TupleFile interface for heap files.
  */
 public class HeapTupleFile implements TupleFile {
+
+    static final int MAX_BLOCKS = 65536;
 
     /** A logging object for reporting anything interesting that happens. */
     private static Logger logger = Logger.getLogger(HeapTupleFile.class);
@@ -61,6 +52,10 @@ public class HeapTupleFile implements TupleFile {
     /** The file that stores the tuples. */
     private DBFile dbFile;
 
+    /** Unsigned shorts tracking free space in each page. */
+    private char[] blocksFreeSpace;
+    static final char SPACE_UNKNOWN = 65535;
+
 
     public HeapTupleFile(StorageManager storageManager,
                          HeapTupleFileManager heapFileManager, DBFile dbFile,
@@ -85,6 +80,8 @@ public class HeapTupleFile implements TupleFile {
         this.dbFile = dbFile;
         this.schema = schema;
         this.stats = stats;
+        this.blocksFreeSpace = new char[MAX_BLOCKS];
+        Arrays.fill(blocksFreeSpace, SPACE_UNKNOWN);
     }
 
 
@@ -323,18 +320,21 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
         DBPage dbPage = null;
         while (true) {
             // Try to load the page without creating a new one.
-            try {
-                dbPage = storageManager.loadDBPage(dbFile, pageNo);
-            }
-            catch (EOFException eofe) {
-                // Couldn't load the current page, because it doesn't exist.
-                // Break out of the loop.
-                logger.debug("Reached end of data file without finding " +
-                             "space for new tuple.");
-                break;
+            int freeSpace = blocksFreeSpace[pageNo];
+            if (freeSpace == SPACE_UNKNOWN) {
+                try {
+                    dbPage = storageManager.loadDBPage(dbFile, pageNo);
+                } catch (EOFException eofe) {
+                    // Couldn't load the current page, because it doesn't exist.
+                    // Break out of the loop.
+                    logger.debug("Reached end of data file without finding " +
+                            "space for new tuple.");
+                    break;
+                }
+                freeSpace = DataPage.getFreeSpaceInPage(dbPage);
+                blocksFreeSpace[pageNo] = (char) freeSpace;
             }
 
-            int freeSpace = DataPage.getFreeSpaceInPage(dbPage);
 
             logger.trace(String.format("Page %d has %d bytes of free space.",
                          pageNo, freeSpace));
@@ -343,6 +343,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             // out of the loop.  (The "+ 2" is for the new slot entry we will
             // also need.)
             if (freeSpace >= tupSize + 2) {
+                if (dbPage == null) dbPage = storageManager.loadDBPage(dbFile, pageNo);
                 logger.debug("Found space for new tuple in page " + pageNo + ".");
                 break;
             }
@@ -372,6 +373,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
 
         DataPage.sanityCheck(dbPage);
+        blocksFreeSpace[pageNo] = (char) DataPage.getFreeSpaceInPage(dbPage);
 
         return pageTup;
     }
@@ -405,6 +407,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+        blocksFreeSpace[dbPage.getPageNo()] = (char) DataPage.getFreeSpaceInPage(dbPage);
     }
 
 
@@ -421,6 +424,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
         DBPage dbPage = ptup.getDBPage();
         DataPage.deleteTuple(dbPage, ptup.getSlot());
         DataPage.sanityCheck(dbPage);
+        blocksFreeSpace[dbPage.getPageNo()] = (char) DataPage.getFreeSpaceInPage(dbPage);
 
         // Note that we don't invalidate the page-tuple when it is deleted,
         // so that the tuple can still be unpinned, etc.
