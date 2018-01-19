@@ -14,6 +14,7 @@ public class ByteFsmFile extends FreeSpaceMapFile {
     private byte[] map;
     private int mapSize;
     private int tupleFilePageSize;
+    private float multiplier;
 
     public ByteFsmFile(StorageManager storageManager, ByteFsmFileManager byteFsmFileManager,
                        DBFile dbFile, byte[] map, int mapSize) {
@@ -22,10 +23,15 @@ public class ByteFsmFile extends FreeSpaceMapFile {
         this.map = map;
         this.mapSize = mapSize;
         this.tupleFilePageSize = dbFile.getPageSize();
+        this.multiplier = 256.0f / this.tupleFilePageSize;
     }
 
     public byte[] getMap() {
         return map;
+    }
+
+    static int bytesToUnsigned(byte b) {
+        return b & 0xFF;
     }
 
     public int getMapSize() {
@@ -34,20 +40,17 @@ public class ByteFsmFile extends FreeSpaceMapFile {
 
     @Override
     public int findSuitablePage(int requiredSize) {
-        byte freeSpaceFraction = (byte) Math.ceil(((float) requiredSize / tupleFilePageSize) * 256);
+        float freeSpaceFraction = (float) requiredSize * multiplier;
         for (int i = 0; i < this.mapSize; i++) {
-            if (freeSpaceFraction < this.map[i]) return i + 1;
+            if (freeSpaceFraction < bytesToUnsigned(this.map[i])) return i + 1;
         }
         return this.mapSize + 1;
     }
 
     @Override
     public void updateFreeSpace(int pageNo, int freeSpace) {
-        byte freeSpaceFraction = (byte) Math.floor(((float) freeSpace / tupleFilePageSize) * 256);
+        byte freeSpaceFraction = (byte) Math.floor(freeSpace * multiplier);
         map[pageNo - 1] = freeSpaceFraction;
-        if (pageNo > this.mapSize) {
-            this.mapSize++;
-            logger.debug("Extending FSM map size to " + this.mapSize);
-        }
+        if (pageNo > this.mapSize) this.mapSize++;
     }
 }
