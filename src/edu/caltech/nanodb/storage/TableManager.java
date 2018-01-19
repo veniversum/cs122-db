@@ -110,7 +110,13 @@ public interface TableManager {
     void closeTable(TableInfo tableInfo) throws IOException;
 
 
-    // TODO: Add docblock
+    /**
+     * Saves table info for all open tables.
+     *
+     * See {@link TableManager#saveTableInfo(TableInfo)}.
+     *
+     * @throws IOException if an IO error occurs while saving.
+     */
     void saveAllTablesInfo() throws IOException;
 
 

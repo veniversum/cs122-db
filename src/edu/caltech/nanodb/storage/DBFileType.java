@@ -17,7 +17,7 @@ public enum DBFileType {
     HEAP_TUPLE_FILE(1),
 
     /**
-     * File representing the free space available in a tuple file using a bitmap.
+     * File representing the free space available in a tuple file using a byte array.
      */
     BYTE_FSM_FILE(3),
 

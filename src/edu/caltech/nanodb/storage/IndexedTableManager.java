@@ -34,7 +34,7 @@ public class IndexedTableManager implements TableManager {
 
     public IndexedTableManager(StorageManager storageManager) {
         this.storageManager = storageManager;
-        openTables = new HashMap<String, TableInfo>();
+        openTables = new HashMap<>();
     }
 
     /**
@@ -96,7 +96,7 @@ public class IndexedTableManager implements TableManager {
             pageSize = properties.getInt("pagesize", pageSize);
             storageType = properties.getString("storage", storageType);
 
-            HashSet<String> names = new HashSet<String>(properties.getNames());
+            HashSet<String> names = new HashSet<>(properties.getNames());
             names.remove("pagesize");
             names.remove("storage");
             if (!names.isEmpty()) {
