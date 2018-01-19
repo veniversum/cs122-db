@@ -260,7 +260,7 @@ public class StorageManager {
         tupleFileManagers.put(DBFileType.HEAP_TUPLE_FILE,
             new HeapTupleFileManager(this));
 
-        freeSpaceMapFileManagers.put(DBFileType.FREE_BITMAP_FILE,
+        freeSpaceMapFileManagers.put(DBFileType.BYTE_FSM_FILE,
                 new ByteFsmFileManager(this));
 
         // TODO:  Register B-tree file-type here.
@@ -308,6 +308,9 @@ public class StorageManager {
             throw new IllegalStateException(
                 "Storage manager is not initialized.");
         }
+
+        // Save all tables
+        tableManager.saveAllTablesInfo();
 
         if (transactionManager != null)
             transactionManager.forceWAL();

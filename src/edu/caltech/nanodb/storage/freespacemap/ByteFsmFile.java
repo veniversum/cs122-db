@@ -2,11 +2,14 @@ package edu.caltech.nanodb.storage.freespacemap;
 
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.StorageManager;
+import org.apache.log4j.Logger;
 
 /**
  * Class managing a free space map file for a particular table.
  */
 public class ByteFsmFile extends FreeSpaceMapFile {
+
+    private static Logger logger = Logger.getLogger(ByteFsmFile.class);
 
     private byte[] map;
     private int mapSize;
@@ -42,6 +45,9 @@ public class ByteFsmFile extends FreeSpaceMapFile {
     public void updateFreeSpace(int pageNo, int freeSpace) {
         byte freeSpaceFraction = (byte) Math.floor(((float) freeSpace / tupleFilePageSize) * 256);
         map[pageNo - 1] = freeSpaceFraction;
-        if (pageNo > this.mapSize) this.mapSize++;
+        if (pageNo > this.mapSize) {
+            this.mapSize++;
+            logger.debug("Extending FSM map size to " + this.mapSize);
+        }
     }
 }

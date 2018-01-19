@@ -3,10 +3,7 @@ package edu.caltech.nanodb.storage;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
@@ -136,11 +133,11 @@ public class IndexedTableManager implements TableManager {
 
         // Create a free space map DB file
         String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
-        DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName, DBFileType.FREE_BITMAP_FILE, pageSize);
+        DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName, DBFileType.BYTE_FSM_FILE, pageSize);
         logger.debug("Created new free space map DBFile for table " + tableName +
                 " at path " + freeSpaceDbFile.getDataFile());
         FreeSpaceMapFileManager fsmFileManager =
-                storageManager.getFreeSpaceMapFileManager(DBFileType.FREE_BITMAP_FILE);
+                storageManager.getFreeSpaceMapFileManager(DBFileType.BYTE_FSM_FILE);
         FreeSpaceMapFile fsmFile =  fsmFileManager.createFreeSpaceMapFile(freeSpaceDbFile);
         tupleFile.setFsmFile(fsmFile);
 
@@ -162,6 +159,17 @@ public class IndexedTableManager implements TableManager {
         FreeSpaceMapFile freeSpaceMapFile = tableInfo.getFreeSpaceMapFile();
         FreeSpaceMapFileManager freeSpaceMapFileManager = freeSpaceMapFile.getFsmFileManager();
         freeSpaceMapFileManager.saveFreeSpaceMapFile(freeSpaceMapFile);
+    }
+
+
+    @Override
+    public void saveAllTablesInfo() throws IOException {
+        Collection c = openTables.values();
+        Iterator itr = c.iterator();
+        while (itr.hasNext()) {
+            TableInfo tableinfo = (TableInfo) itr.next();
+            saveTableInfo(tableinfo);
+        }
     }
 
 
@@ -219,7 +227,6 @@ public class IndexedTableManager implements TableManager {
         storageManager.getBufferManager().flushDBFile(freeSpaceMapDbFile);
         storageManager.getFileManager().closeDBFile(freeSpaceMapDbFile);
     }
-
 
     // Inherit interface docs.
     @Override

@@ -19,7 +19,7 @@ public enum DBFileType {
     /**
      * File representing the free space available in a tuple file using a bitmap.
      */
-    FREE_BITMAP_FILE(3),
+    BYTE_FSM_FILE(3),
 
     /**
      * Represents a B<sup>+</sup> tree tuple file that keeps tuples in a

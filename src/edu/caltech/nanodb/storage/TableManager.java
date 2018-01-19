@@ -110,6 +110,10 @@ public interface TableManager {
     void closeTable(TableInfo tableInfo) throws IOException;
 
 
+    // TODO: Add docblock
+    void saveAllTablesInfo() throws IOException;
+
+
     /**
      * Drops the specified table from the database.
      *

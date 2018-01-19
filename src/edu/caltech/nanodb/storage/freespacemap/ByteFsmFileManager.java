@@ -1,9 +1,11 @@
 package edu.caltech.nanodb.storage.freespacemap;
 
 import edu.caltech.nanodb.storage.*;
+import edu.caltech.nanodb.storage.heapfile.DataPage;
 import edu.caltech.nanodb.storage.heapfile.HeaderPage;
 import org.apache.log4j.Logger;
 
+import java.io.EOFException;
 import java.io.IOException;
 
 public class ByteFsmFileManager implements FreeSpaceMapFileManager {
@@ -41,13 +43,32 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
         PageReader reader = new PageReader(headerPage);
         reader.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-        int size = reader.readInt();
-        byte[] freeSpaceMap = new byte[65536];
-        reader.read(freeSpaceMap, HeaderPage.OFFSET_SCHEMA_SIZE + 1, size);
+        int mapSize = reader.readInt();
+        int pageSize = dbFile.getPageSize();
+        byte[] map = new byte[65536];
 
-        // TODO: Add reading from multiple pages
+        // Read as much of the map as possible from the remainder of the header page
+        int headerPageLeftover = pageSize - 3;
+        reader.read(map, 0, Math.min(mapSize, headerPageLeftover));
 
-        return new ByteFsmFile(this.storageManager, this, dbFile, freeSpaceMap, size);
+
+        // Read the remaining part of the map from subsequent pages
+        int leftToRead = Math.max(0, mapSize - headerPageLeftover);
+        int mapOffset = headerPageLeftover;
+        int pageNo = 1;
+        while (leftToRead > 0) {
+            DBPage dbPage = storageManager.loadDBPage(dbFile, pageNo);
+            int toBeRead = Math.min(leftToRead, pageSize);
+            reader = new PageReader(dbPage);
+            reader.read(map, mapOffset, toBeRead);
+            leftToRead -= toBeRead;
+            mapOffset += pageSize;
+            pageNo++;
+        }
+
+        logger.debug("Read byte fsm of size " + mapSize + " (" + pageNo + " pages) from " + dbFile);
+
+        return new ByteFsmFile(this.storageManager, this, dbFile, map, mapSize);
     }
 
     @Override
@@ -62,18 +83,37 @@ public class ByteFsmFileManager implements FreeSpaceMapFileManager {
         }
 
         ByteFsmFile byteFsmFile = (ByteFsmFile) freeSpaceMapFile;
+        byte[] map = byteFsmFile.getMap();
+        int mapSize = byteFsmFile.getMapSize();
 
+        // Retrieve header page, write map size as the 3rd byte
         DBFile dbFile = freeSpaceMapFile.getDBFile();
+        int pageSize = dbFile.getPageSize();
         DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
-
         PageWriter pageWriter = new PageWriter(headerPage);
         pageWriter.setPosition(HeaderPage.OFFSET_SCHEMA_START);
-        pageWriter.writeInt(byteFsmFile.getMapSize());
-        pageWriter.write(byteFsmFile.getMap(), HeaderPage.OFFSET_SCHEMA_SIZE + 1, byteFsmFile.getMapSize());
+        pageWriter.writeInt(mapSize);
 
-        logger.debug("Wrote byte fsm of size " + byteFsmFile.getMapSize() + " to " + dbFile);
+        // Write as much of the map as possible into the remainder of the header page
+        int headerPageLeftover = pageSize - 3;
+        pageWriter.write(map, 0, Math.min(mapSize, headerPageLeftover));
 
-        // TODO: Write to multiple pages if needed.
+        // Write the remaining part of the map into subsequent pages, extending file if needed
+        int overflow = Math.max(0, mapSize - headerPageLeftover);
+        int mapOffset = headerPageLeftover;
+        int pageNo = 1;
+        while (overflow > 0) {
+            logger.debug(" >>> " + pageNo + " <<< ");
+            DBPage dbPage = storageManager.loadDBPage(dbFile, pageNo, true);
+            int toBeWritten = Math.min(overflow, pageSize);
+            pageWriter = new PageWriter(dbPage);
+            pageWriter.write(map, mapOffset, toBeWritten);
+            overflow -= toBeWritten;
+            mapOffset += pageSize;
+            pageNo++;
+        }
+
+        logger.debug("Wrote byte fsm of size " + mapSize + " (" + pageNo + " pages) to " + dbFile);
 
     }
 
