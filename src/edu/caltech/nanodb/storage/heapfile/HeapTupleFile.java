@@ -327,7 +327,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         // Search for a page to put the tuple in.  If we hit the end of the
         // data file, create a new page.
-        int pageNo = 1;
+        int pageNo = fsmFile.findSuitablePage(tupSize + 2);
         DBPage dbPage = null;
         while (true) {
             // Try to load the page without creating a new one.
@@ -353,12 +353,16 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             if (freeSpace >= tupSize + 2) {
                 logger.debug("Found space for new tuple in page " + pageNo + ".");
                 break;
+            } else {
+                // Page didn't have enough space - bitmap has incorrect values.
+                // Update bitmap.
+                fsmFile.updateFreeSpace(pageNo, freeSpace);
             }
 
             // If we reached this point then the page doesn't have enough
             // space, so go on to the next data page.
             dbPage = null;  // So the next section will work properly.
-            pageNo++;
+            pageNo = fsmFile.findSuitablePage(tupSize + 2);
         }
 
         if (dbPage == null) {
@@ -380,6 +384,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
 
         DataPage.sanityCheck(dbPage);
+        fsmFile.updateFreeSpace(pageNo, DataPage.getFreeSpaceInPage(dbPage));
 
         return pageTup;
     }
@@ -415,6 +420,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+        fsmFile.updateFreeSpace(dbPage.getPageNo(), DataPage.getFreeSpaceInPage(dbPage));
     }
 
 
@@ -433,6 +439,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
         DBPage dbPage = ptup.getDBPage();
         DataPage.deleteTuple(dbPage, ptup.getSlot());
         DataPage.sanityCheck(dbPage);
+        fsmFile.updateFreeSpace(dbPage.getPageNo(), DataPage.getFreeSpaceInPage(dbPage));
 
         // Note that we don't invalidate the page-tuple when it is deleted,
         // so that the tuple can still be unpinned, etc.
