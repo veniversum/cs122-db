@@ -2,12 +2,7 @@ package edu.caltech.nanodb.storage;
 
 
 import edu.caltech.nanodb.expressions.TypeConverter;
-
-import edu.caltech.nanodb.relations.ColumnInfo;
-import edu.caltech.nanodb.relations.ColumnType;
-import edu.caltech.nanodb.relations.Schema;
-import edu.caltech.nanodb.relations.SQLDataType;
-import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.relations.*;
 
 
 /**
@@ -478,8 +473,7 @@ public abstract class PageTuple implements Tuple {
      * @param iCol the index of the column to set to <tt>NULL</tt>
      */
     private void setNullColumnValue(int iCol) {
-        /* TODO:  Implement!
-         *
+        /*
          * The column's flag in the tuple's null-bitmap must be set to true.
          * Also, the data occupied by the column's value must be removed.
          * There are many helpful methods that can be used for this method:
@@ -500,27 +494,38 @@ public abstract class PageTuple implements Tuple {
          * properly as well.  (Note that columns whose value is NULL will have
          * the special NULL_OFFSET constant as their offset in the tuple.)
          */
-        throw new UnsupportedOperationException("TODO:  Implement!");
+        if (isNullValue(iCol)) return; // Do nothing if col value is already null
+
+
+        setNullFlag(iCol, true);
+
+        final int offset = valueOffsets[iCol];
+        final int len = getColumnValueSize(schema.getColumnInfo(iCol).getType(), offset);
+        deleteTupleDataRange(offset, len);
+
+        // Finally, update tuple page offsets
+        valueOffsets[iCol] = NULL_OFFSET;
+        for (int i = iCol - 1; i >= 0; i--) {
+            if (valueOffsets[i] != NULL_OFFSET) valueOffsets[i] += len;
+        }
+        pageOffset += len;
     }
 
 
     /**
      * This helper function is used by the {@link #setColumnValue} method in
-     * the specific case when a column is being set to a non-<tt>NULL</tt>
+     * the specific case when a column is  being set to a non-<tt>NULL</tt>
      * value.
      *
-     * @param iCol The index of the column to set.
-     *
+     * @param iCol  The index of the column to set.
      * @param value the value to set the column to.
-     *
      * @throws IllegalArgumentException if the specified value is {@code null}
      */
     private void setNonNullColumnValue(int iCol, Object value) {
         if (value == null)
             throw new IllegalArgumentException("value cannot be null");
 
-        /* TODO:  Implement!
-         *
+        /*
          * This time, the column's flag in the tuple's null-bitmap must be set
          * to false (if it was true before).
          *
@@ -545,7 +550,52 @@ public abstract class PageTuple implements Tuple {
          * Finally, once you have made space for the new column value, you can
          * write the value itself using the writeNonNullValue() method.
          */
-        throw new UnsupportedOperationException("TODO:  Implement!");
+
+        final ColumnType columnType = schema.getColumnInfo(iCol).getType();
+        final int newDataLength = getStorageSize(columnType, TypeConverter.getStringValue(value).length());
+        int offset;
+        final int deltaLength;
+        // Initialize curDataLength and offset, we have to handle it
+        // differently if the current column value is null.
+        if (isNullValue(iCol)) {
+            setNullFlag(iCol, false);
+            int valOffset = getDataStartOffset();
+            for (int i = iCol - 1; i >= 0; i--) {
+                if (!getNullFlag(i)) {
+                    // Find first non-null tuple column before iCol,
+                    // in order to calculate the offset for iCol.
+                    // If all columns before iCol are null, use data start offset.
+                    valOffset = valueOffsets[i];
+
+                    ColumnType colType = schema.getColumnInfo(i).getType();
+                    valOffset += getColumnValueSize(colType, valOffset);
+                    break;
+                }
+            }
+            offset = valOffset;
+            valueOffsets[iCol] = offset;
+            deltaLength = newDataLength;
+        } else {
+            offset = valueOffsets[iCol];
+            deltaLength = newDataLength - getColumnValueSize(columnType, offset);
+        }
+
+        if (deltaLength > 0) {
+            insertTupleDataRange(offset, deltaLength);
+        } else if (deltaLength < 0) {
+            deleteTupleDataRange(offset, -deltaLength);
+        }
+
+        // Finally, update tuple page offsets
+        if (deltaLength != 0) {
+            offset -= deltaLength;
+            for (int i = iCol; i >= 0; i--) {
+                if (valueOffsets[i] != NULL_OFFSET) valueOffsets[i] -= deltaLength;
+            }
+            pageOffset -= deltaLength;
+        }
+
+        writeNonNullValue(dbPage, offset, columnType, value);
     }
 
 
