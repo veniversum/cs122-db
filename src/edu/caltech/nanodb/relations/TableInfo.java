@@ -4,6 +4,8 @@ package edu.caltech.nanodb.relations;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.TupleFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 
 
 /**
@@ -23,6 +25,10 @@ public class TableInfo {
     private TupleFile tupleFile;
 
 
+    /** The file that holds the table's free space map. */
+    private FreeSpaceMapFile freeSpaceMapFile;
+
+
     /**
      * Construct a table-information object that represents the specified
      * table name and associated tuple file.
@@ -30,6 +36,7 @@ public class TableInfo {
      * @param tableName the name of the table in the database
      *
      * @param tupleFile the tuple file that holds the table's data
+     * @deprecated
      */
     public TableInfo(String tableName, TupleFile tupleFile) {
         if (tableName == null)
@@ -37,6 +44,26 @@ public class TableInfo {
 
         this.tableName = tableName;
         this.tupleFile = tupleFile;
+    }
+
+
+    /**
+     * Construct a table-information object that represents the specified
+     * table name, associated tuple file and a free space map file.
+     *
+     * @param tableName the name of the table in the database
+     *
+     * @param tupleFile the tuple file that holds the table's data
+     *
+     * @param freeSpaceMapFile file that holds the table's free space map
+     */
+    public TableInfo(String tableName, TupleFile tupleFile, FreeSpaceMapFile freeSpaceMapFile) {
+        if (tableName == null)
+            tableName = UNNAMED_TABLE;
+
+        this.tableName = tableName;
+        this.tupleFile = tupleFile;
+        this.freeSpaceMapFile = freeSpaceMapFile;
     }
 
 

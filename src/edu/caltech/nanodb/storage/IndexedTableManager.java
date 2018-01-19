@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import edu.caltech.nanodb.storage.freespacemap.FreeBitmapFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.commands.CommandProperties;
@@ -48,6 +50,17 @@ public class IndexedTableManager implements TableManager {
      */
     private String getTableFileName(String tableName) {
         return tableName + ".tbl";
+    }
+
+    /**
+     * This method takes a table name and returns a filename string that
+     * specifies where the table's free space map is stored.
+     *
+     * @param tableName the name of the table to get the filename of
+     * @return the name of the file that holds the table's free space map
+     */
+    private String getFreeSpaceMapFileName(String tableName) {
+        return tableName + ".map";
     }
 
     @Override
@@ -96,6 +109,7 @@ public class IndexedTableManager implements TableManager {
         }
 
         String tblFileName = getTableFileName(tableName);
+        String freeSpaceMapFileName = getFreeSpaceMapFileName(tableName);
 
         DBFileType type;
         if ("heap".equals(storageType)) {
@@ -112,16 +126,21 @@ public class IndexedTableManager implements TableManager {
 
         // First, create a new DBFile that the tuple file will go into.
         FileManager fileManager = storageManager.getFileManager();
-        DBFile dbFile = fileManager.createDBFile(tblFileName, type, pageSize);
+        DBFile tableDbFile = fileManager.createDBFile(tblFileName, type, pageSize);
+        DBFile freeSpaceDbFile = fileManager.createDBFile(freeSpaceMapFileName, DBFileType.FREE_SPACE_MAP_FILE, pageSize);
+
         logger.debug("Created new DBFile for table " + tableName +
-                     " at path " + dbFile.getDataFile());
+                " at path " + tableDbFile.getDataFile());
+        logger.debug("Created new free space map DBFile for table " + tableName +
+                " at path " + freeSpaceDbFile.getDataFile());
 
         // Now, initialize it to be a tuple file with the specified type and
         // schema.
-        TupleFile tupleFile = tupleFileManager.createTupleFile(dbFile, schema);
+        TupleFile tupleFile = tupleFileManager.createTupleFile(tableDbFile, schema);
+        FreeSpaceMapFile freeSpaceMapFile = new FreeBitmapFile(freeSpaceDbFile);
 
         // Cache this table since it's now considered "open".
-        TableInfo tableInfo = new TableInfo(tableName, tupleFile);
+        TableInfo tableInfo = new TableInfo(tableName, tupleFile, freeSpaceMapFile);
         openTables.put(tableName, tableInfo);
 
         return tableInfo;
