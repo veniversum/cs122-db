@@ -106,7 +106,7 @@ public class IndexedTableManager implements TableManager {
         }
 
 
-        DBFileType type;
+        final DBFileType type;
         if ("heap".equals(storageType)) {
             type = DBFileType.HEAP_TUPLE_FILE;
         }
@@ -164,11 +164,8 @@ public class IndexedTableManager implements TableManager {
 
     @Override
     public void saveAllTablesInfo() throws IOException {
-        Collection c = openTables.values();
-        Iterator itr = c.iterator();
-        while (itr.hasNext()) {
-            TableInfo tableinfo = (TableInfo) itr.next();
-            saveTableInfo(tableinfo);
+        for (TableInfo tableInfo : openTables.values()) {
+            saveTableInfo(tableInfo);
         }
     }
 
