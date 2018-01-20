@@ -1,0 +1,184 @@
+CS122 Assignment 1 - NanoDB Set-Up and Storage Layer - Design Document
+======================================================================
+
+A:  Logistics
+-------------
+
+A1.  List your team name and the people who worked on this assignment.
+
+     <team name>'); DROP TABLE Teams;--
+
+     Qingzhuo Aw Young <qingzhuo@caltech.edu>
+     Timur Kuzhagaliyev <timbokz@caltech.edu>
+
+A2.  Specify the repository URL, tag name and commit-hash of the Git version
+     you are submitting for your assignment.  (You can list the commit hashes
+     of your repository tags with this command:  git show-ref --tags)
+
+     Repository URL:  git@github.com:veniversum/cs122-db.git
+     Tag name:        <tag>
+     Commit hash:     <hash>
+
+A3.  Specify any late tokens you are applying to this assignment, or
+     "none" if no late tokens.
+     
+     None
+
+A4.  Briefly describe what parts of the assignment each teammate focused on.
+
+    Qingzhuo: delete/update tuples, free space
+    Timur: free space map file management, 
+
+B:  Deleting and Updating Tuples
+--------------------------------
+
+B1.  Briefly describe (1-3 sentences) how you reclaim slot entries in
+     the slotted page.  Which slot entries are you able to reclaim?
+     
+     The DataPage::compressHeader function reclaims slot entries in a
+     data page. Empty slots are removed from the end of the header.
+     Empty slots which appear between non-empty slots will not be
+     removed.
+
+B2.  Briefly outline the steps of what your setNullColumnValue() function
+     does.  You don't have to go into much detail; we can look at your
+     code for the details.  Just describe the basic things the function
+     must do to set a column-value to NULL.
+     
+     If column value is already null, we don't have to do anything.
+     
+     If not, we delete the data in the column, and shift the columns
+     in front of the set-null column forward to fill in the empty space.
+     Other slots may be affected as well, but that is handled by
+     deleteTupleDataRange().
+     
+     Finally, we update the valueOffsets for the affected columns and
+     pageOffset too.
+
+B3.  Similarly, briefly outline the steps of what your
+     setNonNullColumnValue() function does.
+     
+     We first look at the column type, and calculate the difference
+     between the new and old data length (to determine whether we
+     need to grow/shrink the tuple size). We also calculate the offset
+     that the column should be positioned at. This is handled differently
+     for null and non-null column values, refer to the code for impl.
+     
+     Next, we grow/shrink the tuple size at the offset by the delta in
+     length. If the delta is non-zero, update valueOffsets for the 
+     affected columns pageOffset too.
+     
+     Finally, we can call writeNonNullValue() to write the value.
+
+
+C:  NanoDB Storage Performance
+------------------------------
+
+C1.  In 3-6 sentences, describe your general approach for improving the
+     performance of inserts, including what general file-level structuring
+     you use of blocks.
+
+    We use the same file-level structuring for the tuple file. To improve the
+    performance of inserts we've introduced an auxiliary .fsm file which
+    contains the free space map for the  tuple file. It stores an array of
+    bytes, where each byte represents the fraction of the space available in a
+    particular page of the tuple file.
+
+    The formula we use to calculate the fraction of the space available
+    roughly translates to <free_space> * ( 256 / <page_size> ). The final
+    result is in range [0, 255] and is represented by a byte in our free space
+    map.
+
+    The free space map file is loaded at the same time as the tuple file. It is
+    explicitly persisted when the database server shuts down. No intermediate
+    writes to the free space map occur unless the table is closed.
+    
+    If the free space map for a table does not exist, has a bad checksum or
+    is corrupt in any other way, it is rebuilt from scratch. This ensures
+    backward compatibility with existing database tables, and will generate
+    FSMs to make existing tables much more efficient too.
+
+C2.  Does your file-level organization have the potential to increase the
+     number of large disk seeks when performing inserts?  What steps do
+     you take, if any, to reduce the number of disk seeks?
+
+    Since we're not just storing a single bit but rather a whole byte which
+    serves as an approximation to the amount of space available in a page, we
+    don't need to seek to "candidate" pages one-by-one to figure out how much
+    free space they actually have. This means that for each insert, we only do
+    a single seek - either to the suitable page or the end of file.
+
+    That said, our insert logic handles the very unlikely case of free space
+    map being out of date: if page returned by findSuitablePage() doesn't have
+    enough space, we update the byte array and then try findSuitablePage().
+    This has a chance to cause multiple seeks, but we don't expect our free
+    space map to ever get outdated so this scenario isn't very representative.
+    
+    Our free space map also supports an alternate strategy which returns the
+    closest page with available space to a starting page (where we might
+    imagine the read head is). This drastically reduces the file distance 
+    travelled.
+    
+    Benchmarks of the different strategies are available at:
+    https://github.com/veniversum/cs122-db/wiki/Benchmarks
+
+
+C3.  What steps must be taken during a tuple-delete operation to update
+     your file-level structures?  How many pages must be written to?
+
+    Our free space map file exposes a method called updateFreeSpace(). This
+    method allows us to update the amount of free space available in a
+    particular page of the tuple file. After tuple-delete operation is
+    performed, we calculate the amount of free space left in the page and
+    update the free space map.
+
+    The free space map file is only persisted when the database shuts down or
+    the table is closed explicitly, so calling updateFreeSpace() will update
+    the free space byte array but will NOT write any pages to the DBFile,
+    therefore no additional page writes will be incurred.
+
+C4.  What steps must be taken after a tuple-insert operation that fills
+     the data page?
+
+    tuple-insert uses the same logic as described in C3.
+
+C5.  Describe your criteria for when a page is considered to be "full."
+
+    This is not really relevant to our design because we use a byte array to
+    represent the amount of free space available in a page, not a mere boolean.
+    That said, when storing the amount of free space left in the byte array, we
+    floor the result - so any cell that has less than <page_size>/256 bytes
+    of free space will appear as having 0 fractions of free space in our byte
+    array.
+
+
+E:  Feedback [OPTIONAL]
+-----------------------
+
+WE NEED YOUR FEEDBACK!  Thoughtful and constructive input will help us to
+improve future versions of the course.  These questions are OPTIONAL, and
+they obviously won't affect your grade in any way (including if you hate
+everything about the assignment and databases in general, or Donnie and/or
+the TAs in particular).  Feel free to answer as many or as few of them as
+you wish.
+
+E1.  How many hours total did your team spend on this assignment?
+     (That is, the sum of each teammate's time spent on the assignment.)
+
+    Timur: 8
+    Qingzhuo: 8
+
+E2.  What parts of the assignment were most time-consuming?  Why?
+
+     Setting up environment
+
+E3.  Did you find any parts of the assignment particularly instructive?
+     Correspondingly, did any parts feel like unnecessary busy-work?
+
+E4.  Did you particularly enjoy any parts of the assignment?  Were there
+     any parts that you particularly disliked?
+     
+     Ant. Outdated TestNG
+
+E5.  Do you have any suggestions for how future versions of the
+     assignment can be improved?
