@@ -16,13 +16,16 @@ public enum DBFileType {
      */
     HEAP_TUPLE_FILE(1),
 
+    /**
+     * File representing the free space available in a tuple file using a byte array.
+     */
+    BYTE_FSM_FILE(3),
 
     /**
      * Represents a B<sup>+</sup> tree tuple file that keeps tuples in a
      * particular order.
      */
     BTREE_TUPLE_FILE(2),
-
 
     /**
      * Represents a transaction-state file used for write-ahead logging and

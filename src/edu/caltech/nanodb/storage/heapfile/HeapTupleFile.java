@@ -8,10 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import org.apache.log4j.Logger;
 
-import edu.caltech.nanodb.queryeval.ColumnStats;
-import edu.caltech.nanodb.queryeval.ColumnStatsCollector;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.relations.TableSchema;
 import edu.caltech.nanodb.relations.Tuple;
@@ -62,6 +61,10 @@ public class HeapTupleFile implements TupleFile {
     private DBFile dbFile;
 
 
+    /** The file that stores the free space map. */
+    private FreeSpaceMapFile fsmFile;
+
+
     public HeapTupleFile(StorageManager storageManager,
                          HeapTupleFileManager heapFileManager, DBFile dbFile,
                          TableSchema schema, TableStats stats) {
@@ -87,7 +90,6 @@ public class HeapTupleFile implements TupleFile {
         this.stats = stats;
     }
 
-
     @Override
     public TupleFileManager getManager() {
         return heapFileManager;
@@ -104,6 +106,10 @@ public class HeapTupleFile implements TupleFile {
         return stats;
     }
 
+    @Override
+    public void setFsmFile(FreeSpaceMapFile fsmFile) {
+        this.fsmFile = fsmFile;
+    }
 
     public DBFile getDBFile() {
         return dbFile;
@@ -294,6 +300,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
     @Override
     public Tuple addTuple(Tuple tup) throws IOException {
 
+        if (fsmFile == null) throw new Error("fsmFile is not set!");
+
         /*
          * Check to see whether any constraints are violated by
          * adding this tuple
@@ -319,7 +327,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         // Search for a page to put the tuple in.  If we hit the end of the
         // data file, create a new page.
-        int pageNo = 1;
+        int pageNo = fsmFile.findClosestSuitablePage(tupSize + 2, dbFile.getLastAccessedPageNo());
         DBPage dbPage = null;
         while (true) {
             // Try to load the page without creating a new one.
@@ -345,12 +353,16 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             if (freeSpace >= tupSize + 2) {
                 logger.debug("Found space for new tuple in page " + pageNo + ".");
                 break;
+            } else {
+                // Page didn't have enough space - free space map has incorrect values.
+                // Update free space map.
+                fsmFile.updateFreeSpace(pageNo, freeSpace);
             }
 
             // If we reached this point then the page doesn't have enough
             // space, so go on to the next data page.
             dbPage = null;  // So the next section will work properly.
-            pageNo++;
+            pageNo = fsmFile.findClosestSuitablePage(tupSize + 2, dbFile.getLastAccessedPageNo());
         }
 
         if (dbPage == null) {
@@ -372,6 +384,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
 
         DataPage.sanityCheck(dbPage);
+        fsmFile.updateFreeSpace(pageNo, DataPage.getFreeSpaceInPage(dbPage));
 
         return pageTup;
     }
@@ -389,6 +402,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
     public void updateTuple(Tuple tup, Map<String, Object> newValues)
         throws IOException {
 
+        if (fsmFile == null) throw new Error("fsmFile is not set!");
+
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
                 "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
@@ -405,12 +420,15 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+        fsmFile.updateFreeSpace(dbPage.getPageNo(), DataPage.getFreeSpaceInPage(dbPage));
     }
 
 
     // Inherit interface-method documentation.
     @Override
     public void deleteTuple(Tuple tup) throws IOException {
+
+        if (fsmFile == null) throw new Error("fsmFile is not set!");
 
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
@@ -421,6 +439,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
         DBPage dbPage = ptup.getDBPage();
         DataPage.deleteTuple(dbPage, ptup.getSlot());
         DataPage.sanityCheck(dbPage);
+        fsmFile.updateFreeSpace(dbPage.getPageNo(), DataPage.getFreeSpaceInPage(dbPage));
 
         // Note that we don't invalidate the page-tuple when it is deleted,
         // so that the tuple can still be unpinned, etc.

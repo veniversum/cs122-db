@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
+import edu.caltech.nanodb.storage.freespacemap.ByteFsmFileManager;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.expressions.TypeCastException;
@@ -196,6 +199,13 @@ public class StorageManager {
     private HashMap<DBFileType, TupleFileManager> tupleFileManagers =
         new HashMap<>();
 
+    /**
+     * This mapping is used to keep track of the free space map file managers
+     * for all the kinds of free space map files we support.
+     */
+    private HashMap<DBFileType, ByteFsmFileManager> freeSpaceMapFileManagers =
+            new HashMap<>();
+
 
     /**
      * This method initializes the storage manager.  It should only be called
@@ -250,6 +260,9 @@ public class StorageManager {
         tupleFileManagers.put(DBFileType.HEAP_TUPLE_FILE,
             new HeapTupleFileManager(this));
 
+        freeSpaceMapFileManagers.put(DBFileType.BYTE_FSM_FILE,
+                new ByteFsmFileManager(this));
+
         // TODO:  Register B-tree file-type here.
 
         if (TransactionManager.isEnabled()) {
@@ -295,6 +308,9 @@ public class StorageManager {
             throw new IllegalStateException(
                 "Storage manager is not initialized.");
         }
+
+        // Save all tables
+        tableManager.saveAllTablesInfo();
 
         if (transactionManager != null)
             transactionManager.forceWAL();
@@ -377,6 +393,19 @@ public class StorageManager {
         return tfManager.openTupleFile(dbFile);
     }
 
+    public FreeSpaceMapFile openFreeSpaceMapFile(String filename) throws IOException {
+        DBFile dbFile = fileManager.openDBFile(filename);
+        DBFileType type = dbFile.getType();
+        FreeSpaceMapFileManager manager = getFreeSpaceMapFileManager(type);
+
+        logger.debug(String.format("Opened DBFile for free space map file at path %s.",
+            dbFile.getDataFile()));
+        logger.debug(String.format("Type is %s, page size is %d bytes.",
+            type, dbFile.getPageSize()));
+
+        return manager.openFreeSpaceMapFile(dbFile);
+    }
+
 
     private void closeDBFile(DBFile dbFile) throws IOException {
         bufferManager.removeDBFile(dbFile);
@@ -409,6 +438,29 @@ public class StorageManager {
             throw new IllegalArgumentException("type cannot be null");
 
         TupleFileManager manager = tupleFileManagers.get(type);
+        if (manager == null) {
+            throw new IllegalArgumentException(
+                "Unsupported tuple-file type:  " + type);
+        }
+
+        return manager;
+    }
+
+    /**
+     * Returns the free space map file manager for the specified file type.
+     *
+     * @param type the database file type to get the manager for.
+     *
+     * @return the manager instance for the specified file type
+     *
+     * @throws IllegalArgumentException if the file-type is <tt>null</tt>, or
+     *         if the file-type is currently unsupported.
+     */
+    public FreeSpaceMapFileManager getFreeSpaceMapFileManager(DBFileType type) {
+        if (type == null)
+            throw new IllegalArgumentException("type cannot be null");
+
+        FreeSpaceMapFileManager manager = freeSpaceMapFileManagers.get(type);
         if (manager == null) {
             throw new IllegalArgumentException(
                 "Unsupported tuple-file type:  " + type);

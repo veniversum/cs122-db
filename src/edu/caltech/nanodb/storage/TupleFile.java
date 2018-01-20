@@ -8,6 +8,7 @@ import java.util.Map;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.relations.TableSchema;
 import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 
 
 /**
@@ -56,6 +57,12 @@ public interface TupleFile {
      */
     TableStats getStats();
 
+    /**
+     * Sets the free space map file corresponding to this tuple file/table.
+     *
+     * @param fsmFile the space map file corresponding to this tuple file/table.
+     */
+    void setFsmFile(FreeSpaceMapFile fsmFile);
 
     /**
      * Returns the first tuple in this table file, or <tt>null</tt> if there
