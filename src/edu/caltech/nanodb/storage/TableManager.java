@@ -121,6 +121,15 @@ public interface TableManager {
 
 
     /**
+     * Closes all open tables.
+     *
+     * See {@link TableManager#saveTableInfo(TableInfo)}.
+     *
+     * @throws IOException if an IO error occurs while saving.
+     */
+    void closeAllTables() throws IOException;
+
+    /**
      * Drops the specified table from the database.
      *
      * @param tableName the name of the table to drop

@@ -4,6 +4,7 @@ package edu.caltech.nanodb.storage;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
@@ -259,6 +260,14 @@ public class IndexedTableManager implements TableManager {
         storageManager.getFileManager().closeDBFile(tableDbFile);
         storageManager.getBufferManager().flushDBFile(freeSpaceMapDbFile);
         storageManager.getFileManager().closeDBFile(freeSpaceMapDbFile);
+    }
+
+    // Inherit interface docs.
+    @Override
+    public void closeAllTables() throws IOException {
+        for (TableInfo tableInfo : new CopyOnWriteArrayList<>(openTables.values())) {
+            closeTable(tableInfo);
+        }
     }
 
     // Inherit interface docs.

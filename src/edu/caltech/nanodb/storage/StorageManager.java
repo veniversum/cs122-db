@@ -311,6 +311,7 @@ public class StorageManager {
 
         // Save all tables
         tableManager.saveAllTablesInfo();
+        tableManager.closeAllTables();
 
         if (transactionManager != null)
             transactionManager.forceWAL();
