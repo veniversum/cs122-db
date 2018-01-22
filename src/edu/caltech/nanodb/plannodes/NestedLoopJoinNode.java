@@ -1,20 +1,14 @@
 package edu.caltech.nanodb.plannodes;
 
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.expressions.OrderByExpression;
-import edu.caltech.nanodb.queryeval.ColumnStats;
-import edu.caltech.nanodb.queryeval.PlanCost;
-import edu.caltech.nanodb.queryeval.SelectivityEstimator;
 import edu.caltech.nanodb.relations.JoinType;
 import edu.caltech.nanodb.relations.Tuple;
+import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
+import java.io.IOException;
+import java.util.List;
 
 
 /**
@@ -199,8 +193,16 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
      *         {@code false} if no more pairs of tuples are available to join.
      */
     private boolean getTuplesToJoin() throws IOException {
-        // TODO:  Implement
-        return false;
+        if (leftTuple == null && rightTuple == null) {
+            rightTuple = rightChild.getNextTuple();
+        }
+        leftTuple = leftChild.getNextTuple();
+        if (leftTuple == null) {
+            rightTuple = rightChild.getNextTuple();
+            leftChild.initialize();
+            leftTuple = leftChild.getNextTuple();
+        }
+        return leftTuple != null && rightTuple != null;
     }
 
 
