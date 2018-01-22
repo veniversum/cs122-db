@@ -4,6 +4,7 @@ package edu.caltech.nanodb.queryeval;
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.plannodes.FileScanNode;
 import edu.caltech.nanodb.plannodes.PlanNode;
+import edu.caltech.nanodb.plannodes.ProjectNode;
 import edu.caltech.nanodb.plannodes.SelectNode;
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
@@ -21,6 +22,7 @@ import java.util.List;
  * <tt>UPDATE</tt> and <tt>DELETE</tt> expressions will also use this class
  * to generate simple plans to identify the tuples to update or delete.
  */
+@SuppressWarnings("Duplicates")
 public class SimplePlanner extends AbstractPlannerImpl {
 
     /** A logging object for reporting anything interesting that happens. */
@@ -51,19 +53,23 @@ public class SimplePlanner extends AbstractPlannerImpl {
                 "Not implemented:  enclosing queries");
         }
 
-        if (!selClause.isTrivialProject()) {
-            throw new UnsupportedOperationException(
-                "Not implemented:  project");
-        }
-
         FromClause fromClause = selClause.getFromClause();
-        if (!fromClause.isBaseTable()) {
+        if (fromClause != null && !fromClause.isBaseTable()) {
             throw new UnsupportedOperationException(
                 "Not implemented:  joins or subqueries in FROM clause");
         }
+        SelectNode node = null;
+        if (fromClause != null && fromClause.getTableName() != null)
+            node = makeSimpleSelect(fromClause.getTableName(),
+                selClause.getWhereExpr(), null);
 
-        return makeSimpleSelect(fromClause.getTableName(),
-            selClause.getWhereExpr(), null);
+        if (!selClause.isTrivialProject()) {
+            ProjectNode projectNode = new ProjectNode(node, selClause.getSelectValues());
+            projectNode.prepare();
+            return projectNode;
+        }
+
+        return node;
     }
 
 
