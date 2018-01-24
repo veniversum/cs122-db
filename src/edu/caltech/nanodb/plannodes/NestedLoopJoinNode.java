@@ -26,6 +26,8 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
     /** Most recently retrieved tuple of the right relation. */
     private Tuple rightTuple;
 
+    private boolean joined;
+
 
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
@@ -177,8 +179,10 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             return null;
 
         while (getTuplesToJoin()) {
-            if (canJoinTuples())
+            if (canJoinTuples()) {
+                joined = true;
                 return joinTuples(leftTuple, rightTuple);
+            }
         }
 
         return null;
@@ -193,22 +197,25 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
      *         {@code false} if no more pairs of tuples are available to join.
      */
     private boolean getTuplesToJoin() throws IOException {
-        if (leftTuple == null && rightTuple == null) {
-            rightTuple = rightChild.getNextTuple();
+        if (leftTuple == null) leftTuple = leftChild.getNextTuple();
+        rightTuple = rightChild.getNextTuple();
+        if (rightTuple == null) {
+            if (joinType != JoinType.LEFT_OUTER || joined) {
+                leftTuple = leftChild.getNextTuple();
+                rightChild.initialize();
+                joined = false;
+            }
         }
-        leftTuple = leftChild.getNextTuple();
-        if (leftTuple == null) {
-            rightTuple = rightChild.getNextTuple();
-            leftChild.initialize();
-            leftTuple = leftChild.getNextTuple();
-        }
-        return leftTuple != null && rightTuple != null;
+        done = leftTuple == null;
+        return !done;
     }
 
 
     private boolean canJoinTuples() {
         // If the predicate was not set, we can always join them!
         if (predicate == null)
+            return true;
+        if (rightTuple == null && !joined)
             return true;
 
         environment.clear();

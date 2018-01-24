@@ -103,6 +103,9 @@ public abstract class ThetaJoinNode extends PlanNode {
         TupleLiteral joinedTuple = new TupleLiteral();
         // appendTuple() also copies schema information from the source tuples.
 
+        // Generate null tuple in the event of an outer join and joining tuple is null.
+        if (right == null) right = new TupleLiteral(rightChild.getSchema().getColumnNames().size());
+
         if (!schemaSwapped) {
             joinedTuple.appendTuple(left);
             joinedTuple.appendTuple(right);
@@ -123,7 +126,7 @@ public abstract class ThetaJoinNode extends PlanNode {
     public void initialize() {
         super.initialize();
 
-        if (joinType != JoinType.CROSS && joinType != JoinType.INNER) {
+        if (joinType != JoinType.CROSS && joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
             throw new UnsupportedOperationException(
                 "We don't support joins of type " + joinType + " yet!");
         }
