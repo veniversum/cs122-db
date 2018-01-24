@@ -203,6 +203,7 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             if (joinType != JoinType.LEFT_OUTER || joined) {
                 leftTuple = leftChild.getNextTuple();
                 rightChild.initialize();
+                rightTuple = rightChild.getNextTuple();
                 joined = false;
             }
         }
