@@ -2,10 +2,7 @@ package edu.caltech.nanodb.queryeval;
 
 
 import edu.caltech.nanodb.expressions.Expression;
-import edu.caltech.nanodb.plannodes.FileScanNode;
-import edu.caltech.nanodb.plannodes.PlanNode;
-import edu.caltech.nanodb.plannodes.ProjectNode;
-import edu.caltech.nanodb.plannodes.SelectNode;
+import edu.caltech.nanodb.plannodes.*;
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
 import edu.caltech.nanodb.relations.TableInfo;
@@ -54,25 +51,34 @@ public class SimplePlanner extends AbstractPlannerImpl {
         }
 
         FromClause fromClause = selClause.getFromClause();
-        if (fromClause != null && !fromClause.isBaseTable()) {
-            throw new UnsupportedOperationException(
-                "Not implemented:  joins or subqueries in FROM clause");
-        }
-        SelectNode node = null;
-        if (fromClause != null && fromClause.getTableName() != null)
-            node = makeSimpleSelect(fromClause.getTableName(),
-                selClause.getWhereExpr(), null);
+
+        PlanNode node = deconstructFrom(fromClause);
+//        if (fromClause != null && fromClause.getTableName() != null)
+//            node = makeSimpleSelect(fromClause.getTableName(),
+//                selClause.getWhereExpr(), null);
+        if (selClause.getWhereExpr() != null)
+            node = new SimpleFilterNode(node, selClause.getWhereExpr());
 
         if (!selClause.isTrivialProject()) {
-            ProjectNode projectNode = new ProjectNode(node, selClause.getSelectValues());
-            projectNode.prepare();
-            return projectNode;
+            node = new ProjectNode(node, selClause.getSelectValues());
         }
-
+        node.prepare();
         return node;
     }
 
-
+    private PlanNode deconstructFrom(FromClause fromClause) throws IOException {
+        if (fromClause == null) return null;
+        if (fromClause.isBaseTable()) {
+            TableInfo tableInfo = storageManager.getTableManager().openTable(fromClause.getTableName());
+            PlanNode node = new FileScanNode(tableInfo, null);
+            if (fromClause.isRenamed()) node = new RenameNode(node, fromClause.getResultName());
+            return node;
+        }
+        return new NestedLoopJoinNode(deconstructFrom(fromClause.getLeftChild())
+                , deconstructFrom(fromClause.getRightChild())
+                , fromClause.getJoinType()
+                , fromClause.getOnExpression());
+    }
     /**
      * Constructs a simple select plan that reads directly from a table, with
      * an optional predicate for selecting rows.
