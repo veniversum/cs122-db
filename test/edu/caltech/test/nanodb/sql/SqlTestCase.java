@@ -414,6 +414,22 @@ public class SqlTestCase {
         assert result.getTuples().size() > 0;
     }
 
+    /**
+     * This helper function takes in the name of a test table, and returns
+     * <tt>true</tt> if there is no tuple in that table. This is
+     * done by issuing a SQL command to select all values from the table.
+     *
+     * @param tableName the name of the table to check.
+     * @throws Throwable if an error occurred during command execution, as
+     *                   reported by the command result.
+     */
+    public void testTableEmpty(String tableName) throws Throwable {
+        CommandResult result;
+
+        result = server.doCommand("SELECT * FROM " + tableName, true);
+        assert result.getTuples().size() == 0;
+    }
+
 
     /**
      * This helper function takes in an <tt>int</tt> value, and returns a
