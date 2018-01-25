@@ -11,6 +11,7 @@ import edu.caltech.nanodb.relations.TableInfo;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -58,15 +59,18 @@ public class SimplePlanner extends AbstractPlannerImpl {
         if (havingExpr != null)
             havingExpr = havingExpr.traverse(processor);
 
-        // Todo remove after implementing enclosing selects
+        /*
+        Todo remove after implementing enclosing selects
+        Not needed for now since from clause doesn't support correlated subqueries.
+         */
         if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
             throw new UnsupportedOperationException(
                 "Not implemented:  enclosing queries");
         }
 
         /*
-        Process the from clause, by construction join nodes,
-        renaming table, etc.
+        Process the from clause, by construction of join nodes,
+        subqueries, renaming table, etc. See deconstructFrom().
          */
         final FromClause fromClause = selClause.getFromClause();
         PlanNode node = deconstructFrom(fromClause);
@@ -97,7 +101,9 @@ public class SimplePlanner extends AbstractPlannerImpl {
         if (!selClause.isTrivialProject())
             node = new ProjectNode(node, selClause.getSelectValues());
 
-
+        /*
+        Optionally, skip a number of rows and limit the total number of output rows.
+         */
         if (selClause.isLimitSet() || selClause.isOffsetSet())
             node = new LimitOffsetNode(node, selClause.getLimit(), selClause.getOffset());
 
@@ -110,18 +116,32 @@ public class SimplePlanner extends AbstractPlannerImpl {
         return node;
     }
 
+    /**
+     * Recursively deconstructs the fromClause into it's plan nodes by preorder
+     * traversal of the fromClause tree.
+     *
+     * Handles 3 cases: base table, nested subquery, and joins
+     *
+     * @param fromClause the from clause to deconstruct
+     * @return root node of the plan node tree for the from clause
+     * @throws IOException if an error occurs while loading table information
+     */
     private PlanNode deconstructFrom(FromClause fromClause) throws IOException {
         if (fromClause == null) return null;
+        PlanNode node = null;
         if (fromClause.isBaseTable()) {
             TableInfo tableInfo = storageManager.getTableManager().openTable(fromClause.getTableName());
-            PlanNode node = new FileScanNode(tableInfo, null);
-            if (fromClause.isRenamed()) node = new RenameNode(node, fromClause.getResultName());
-            return node;
+            node = new FileScanNode(tableInfo, null);
+        } else if (fromClause.isDerivedTable()) {
+            node = makePlan(fromClause.getSelectClause(), Collections.emptyList());
+        } else if (fromClause.isJoinExpr()) {
+            node = new NestedLoopJoinNode(deconstructFrom(fromClause.getLeftChild())
+                    , deconstructFrom(fromClause.getRightChild())
+                    , fromClause.getJoinType()
+                    , fromClause.getOnExpression());
         }
-        return new NestedLoopJoinNode(deconstructFrom(fromClause.getLeftChild())
-                , deconstructFrom(fromClause.getRightChild())
-                , fromClause.getJoinType()
-                , fromClause.getOnExpression());
+        if (fromClause.isRenamed() && node != null) node = new RenameNode(node, fromClause.getResultName());
+        return node;
     }
     /**
      * Constructs a simple select plan that reads directly from a table, with
