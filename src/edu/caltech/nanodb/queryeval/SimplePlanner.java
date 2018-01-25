@@ -44,13 +44,19 @@ public class SimplePlanner extends AbstractPlannerImpl {
         final SimpleExpressionProcessor processor = new SimpleExpressionProcessor();
         final List<SelectValue> selectValues = selClause.getSelectValues();
 
-        // Process expressions in select values
+        /*
+        Process expressions in select values and having clause.
+        We need to replace aggregate function calls with string identifiers here.
+         */
         for (SelectValue sv : selectValues) {
             if (sv.isExpression()) {
                 Expression e = sv.getExpression().traverse(processor);
                 sv.setExpression(e);
             }
         }
+        Expression havingExpr = selClause.getHavingExpr();
+        if (havingExpr != null)
+            havingExpr = havingExpr.traverse(processor);
 
         // Todo remove after implementing enclosing selects
         if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
@@ -58,19 +64,45 @@ public class SimplePlanner extends AbstractPlannerImpl {
                 "Not implemented:  enclosing queries");
         }
 
+        /*
+        Process the from clause, by construction join nodes,
+        renaming table, etc.
+         */
         final FromClause fromClause = selClause.getFromClause();
-
         PlanNode node = deconstructFrom(fromClause);
+
+        /*
+        Filter on the where clause.
+         */
         if (selClause.getWhereExpr() != null)
             node = new SimpleFilterNode(node, selClause.getWhereExpr());
 
+        /*
+        Process group by clause and aggregate function calls if we need to.
+         */
         final List<Expression> groupByExprs = selClause.getGroupByExprs();
         if (groupByExprs.size() > 0 || !processor.getRenamedFunctionCallMap().isEmpty())
             node = new HashedGroupAggregateNode(node, groupByExprs, processor.getRenamedFunctionCallMap());
 
+        /*
+        Filter on the having clause, now that we've evaluated the function calls.
+        We can't evaluate the having clause if there are unevaluated functions in it.
+         */
+        if (havingExpr != null)
+            node = new SimpleFilterNode(node, havingExpr);
+
+        /*
+        Finally, project the results if we need to.
+         */
         if (!selClause.isTrivialProject()) {
             node = new ProjectNode(node, selClause.getSelectValues());
         }
+
+        /*
+        Prepare node before returning.
+        This will recursively prepare all child nodes in the planning tree,
+        and generate the output schema.
+         */
         node.prepare();
         return node;
     }
