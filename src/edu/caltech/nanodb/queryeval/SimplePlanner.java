@@ -2,9 +2,11 @@ package edu.caltech.nanodb.queryeval;
 
 
 import edu.caltech.nanodb.expressions.Expression;
+import edu.caltech.nanodb.expressions.SimpleExpressionProcessor;
 import edu.caltech.nanodb.plannodes.*;
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
+import edu.caltech.nanodb.queryast.SelectValue;
 import edu.caltech.nanodb.relations.TableInfo;
 import org.apache.log4j.Logger;
 
@@ -38,26 +40,33 @@ public class SimplePlanner extends AbstractPlannerImpl {
      *         load schema and indexing information.
      */
     @Override
-    public PlanNode makePlan(SelectClause selClause,
-        List<SelectClause> enclosingSelects) throws IOException {
+    public PlanNode makePlan(SelectClause selClause, List<SelectClause> enclosingSelects) throws IOException {
+        final SimpleExpressionProcessor processor = new SimpleExpressionProcessor();
+        final List<SelectValue> selectValues = selClause.getSelectValues();
 
-        // For HW1, we have a very simple implementation that defers to
-        // makeSimpleSelect() to handle simple SELECT queries with one table,
-        // and an optional WHERE clause.
+        // Process expressions in select values
+        for (SelectValue sv : selectValues) {
+            if (sv.isExpression()) {
+                Expression e = sv.getExpression().traverse(processor);
+                sv.setExpression(e);
+            }
+        }
 
+        // Todo remove after implementing enclosing selects
         if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
             throw new UnsupportedOperationException(
                 "Not implemented:  enclosing queries");
         }
 
-        FromClause fromClause = selClause.getFromClause();
+        final FromClause fromClause = selClause.getFromClause();
 
         PlanNode node = deconstructFrom(fromClause);
-//        if (fromClause != null && fromClause.getTableName() != null)
-//            node = makeSimpleSelect(fromClause.getTableName(),
-//                selClause.getWhereExpr(), null);
         if (selClause.getWhereExpr() != null)
             node = new SimpleFilterNode(node, selClause.getWhereExpr());
+
+        final List<Expression> groupByExprs = selClause.getGroupByExprs();
+        if (groupByExprs.size() > 0 || !processor.getRenamedFunctionCallMap().isEmpty())
+            node = new HashedGroupAggregateNode(node, groupByExprs, processor.getRenamedFunctionCallMap());
 
         if (!selClause.isTrivialProject()) {
             node = new ProjectNode(node, selClause.getSelectValues());
