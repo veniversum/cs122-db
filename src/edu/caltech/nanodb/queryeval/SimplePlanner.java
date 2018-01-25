@@ -94,9 +94,12 @@ public class SimplePlanner extends AbstractPlannerImpl {
         /*
         Finally, project the results if we need to.
          */
-        if (!selClause.isTrivialProject()) {
+        if (!selClause.isTrivialProject())
             node = new ProjectNode(node, selClause.getSelectValues());
-        }
+
+
+        if (selClause.isLimitSet() || selClause.isOffsetSet())
+            node = new LimitOffsetNode(node, selClause.getLimit(), selClause.getOffset());
 
         /*
         Prepare node before returning.

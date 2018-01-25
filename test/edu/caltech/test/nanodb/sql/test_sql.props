@@ -488,7 +488,7 @@ setup_testNaturalUsingJoins = \
     INSERT INTO test_nuj_t6 VALUES (14, 100000);
 
 #============================================================================
-# Data for tests exercising NATURAL joins, and joins with the USING clause
+# Data for tests exercising simple joins
 #
 
 setup_testSimpleJoins = \
@@ -501,3 +501,16 @@ setup_testSimpleJoins = \
     INSERT INTO test_sj_t2 VALUES (1); \
     INSERT INTO test_sj_t2 VALUES (5);
 
+
+#============================================================================
+# Data for tests exercising LIMIT and OFFSET clauses
+
+setup_testLimitOffset = \
+    CREATE TABLE test_lo_t1 ( a INTEGER); \
+    INSERT INTO test_lo_t1 VALUES (1); \
+    INSERT INTO test_lo_t1 VALUES (2); \
+    INSERT INTO test_lo_t1 VALUES (3); \
+    INSERT INTO test_lo_t1 VALUES (4); \
+    INSERT INTO test_lo_t1 VALUES (5); \
+    INSERT INTO test_lo_t1 VALUES (6); \
+    INSERT INTO test_lo_t1 VALUES (7); \

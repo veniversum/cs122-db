@@ -1,20 +1,17 @@
 package edu.caltech.nanodb.queryast;
 
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-
+import edu.caltech.nanodb.expressions.ColumnName;
+import edu.caltech.nanodb.expressions.Expression;
+import edu.caltech.nanodb.expressions.OrderByExpression;
+import edu.caltech.nanodb.relations.ColumnInfo;
+import edu.caltech.nanodb.relations.Schema;
+import edu.caltech.nanodb.relations.SchemaNameException;
+import edu.caltech.nanodb.storage.TableManager;
 import org.apache.log4j.Logger;
 
-import edu.caltech.nanodb.expressions.*;
-import edu.caltech.nanodb.relations.*;
-import edu.caltech.nanodb.storage.TableManager;
+import java.io.IOException;
+import java.util.*;
 
 
 /**
@@ -101,9 +98,9 @@ public class SelectClause {
 
     /**
      * The maximum number of rows that may be returned by the <tt>SELECT</tt>
-     * clause.  The default value of 0 means "no limit".
+     * clause.  The default value of Integer.MAX_VALUE means "no limit".
      */
-    private int limit = 0;
+    private int limit = Integer.MAX_VALUE;
 
 
     /**
@@ -304,6 +301,10 @@ public class SelectClause {
         this.limit = limit;
     }
 
+    public boolean isLimitSet() {
+        return limit != Integer.MAX_VALUE;
+    }
+
 
     /**
      * If an <tt>OFFSET</tt> clause is specified, this method returns the
@@ -320,6 +321,9 @@ public class SelectClause {
         this.offset = offset;
     }
 
+    public boolean isOffsetSet() {
+        return offset != 0;
+    }
 
     /**
      * Returns true if the select clause is correlated with some enclosing
