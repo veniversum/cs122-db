@@ -44,7 +44,7 @@ public class TupleComparator implements Comparator<Tuple> {
 
 
     /** The epsilon used to compare floating-point values. */
-    private static double EPSILON = 0.00000;
+    private static final double EPSILON = 0.00001;
 
 
     /**
@@ -157,8 +157,9 @@ public class TupleComparator implements Comparator<Tuple> {
             return false;
 
         // Set the epsilon value
+        double localEpsilon = EPSILON;
         if (epsilon.length == 1)
-            EPSILON = epsilon[0];
+            localEpsilon = epsilon[0];
 
         int size = t1.getColumnCount();
         for (int i = 0; i < size; i++) {
@@ -186,13 +187,13 @@ public class TupleComparator implements Comparator<Tuple> {
                 if (p.value1 instanceof Double) {
                     double value1 = ((Double)p.value1).doubleValue();
                     double value2 = ((Double)p.value2).doubleValue();
-                    if (Math.abs(value1 - value2) > EPSILON)
+                    if (Math.abs(value1 - value2) > localEpsilon)
                         return false;
                 }
                 else if (p.value1 instanceof Float) {
                     float value1 = ((Float)p.value1).floatValue();
                     float value2 = ((Float)p.value2).floatValue();
-                    if (Math.abs(value1 - value2) > EPSILON)
+                    if (Math.abs(value1 - value2) > localEpsilon)
                         return false;
                 }
 
