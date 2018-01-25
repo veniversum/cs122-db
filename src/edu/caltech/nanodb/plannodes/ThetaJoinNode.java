@@ -11,6 +11,8 @@ import edu.caltech.nanodb.relations.Tuple;
 
 import java.util.ArrayList;
 
+import static edu.caltech.nanodb.relations.JoinType.RIGHT_OUTER;
+
 
 /**
  * PlanNode representing the <tt>FROM</tt> clause in a <tt>SELECT</tt>
@@ -126,7 +128,8 @@ public abstract class ThetaJoinNode extends PlanNode {
     public void initialize() {
         super.initialize();
 
-        if (joinType != JoinType.CROSS && joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
+        if (joinType != JoinType.CROSS && joinType != JoinType.INNER
+                && joinType != JoinType.LEFT_OUTER && joinType != RIGHT_OUTER) {
             throw new UnsupportedOperationException(
                 "We don't support joins of type " + joinType + " yet!");
         }

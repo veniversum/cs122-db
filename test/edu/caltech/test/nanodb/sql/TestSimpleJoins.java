@@ -69,6 +69,17 @@ public class TestSimpleJoins extends SqlTestCase {
         assert checkSizeResults(expected3, result);
         assert checkUnorderedResults(expected3, result);
         checkResultSchema(result, "T1.A", "T2.B");
+
+        // Right outer join on 2 tables
+        result = server.doCommand(
+                "SELECT * FROM test_sj_t1 t1 RIGHT JOIN test_sj_t2 t2 ON t1.a = t2.b;", true);
+        TupleLiteral[] expected4 = {
+                new TupleLiteral(1, 1),
+                new TupleLiteral(null, 5),
+        };
+        assert checkSizeResults(expected4, result);
+        assert checkUnorderedResults(expected4, result);
+        checkResultSchema(result, "T1.A", "T2.B");
     }
 
     /**

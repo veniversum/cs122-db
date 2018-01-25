@@ -145,6 +145,15 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
 
     @Override
     public void prepare() {
+        // Simple trick to use left outer join technique for right outer joins,
+        // by just switching the left and right subplans.
+        if (joinType == JoinType.RIGHT_OUTER) {
+            schemaSwapped = true;
+            joinType = JoinType.LEFT_OUTER;
+            PlanNode tmp = leftChild;
+            leftChild = rightChild;
+            rightChild = tmp;
+        }
         // Need to prepare the left and right child-nodes before we can do
         // our own work.
         leftChild.prepare();
