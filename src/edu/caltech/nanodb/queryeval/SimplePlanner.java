@@ -3,14 +3,18 @@ package edu.caltech.nanodb.queryeval;
 
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.expressions.SimpleExpressionProcessor;
+import edu.caltech.nanodb.expressions.SubqueryExpressionProcessor;
+import edu.caltech.nanodb.expressions.SubqueryOperator;
 import edu.caltech.nanodb.plannodes.*;
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
 import edu.caltech.nanodb.queryast.SelectValue;
 import edu.caltech.nanodb.relations.TableInfo;
+import org.antlr.stringtemplate.language.Expr;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,6 +47,7 @@ public class SimplePlanner extends AbstractPlannerImpl {
     @Override
     public PlanNode makePlan(SelectClause selClause, List<SelectClause> enclosingSelects) throws IOException {
         final SimpleExpressionProcessor processor = new SimpleExpressionProcessor();
+        final SubqueryExpressionProcessor subProcessor = new SubqueryExpressionProcessor();
         final List<SelectValue> selectValues = selClause.getSelectValues();
 
         /*
@@ -52,6 +57,11 @@ public class SimplePlanner extends AbstractPlannerImpl {
         for (SelectValue sv : selectValues) {
             if (sv.isExpression()) {
                 Expression e = sv.getExpression().traverse(processor);
+                e.traverse(subProcessor);
+                for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
+                    subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
+                }
+                subProcessor.resetSubqueryExpressions();
                 sv.setExpression(e);
             }
         }
@@ -78,8 +88,15 @@ public class SimplePlanner extends AbstractPlannerImpl {
         /*
         Filter on the where clause.
          */
-        if (selClause.getWhereExpr() != null)
+        if (selClause.getWhereExpr() != null) {
+            selClause.getWhereExpr().traverse(subProcessor);
+            for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
+                // TODO: Replace null with something else
+                subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
+            }
+            subProcessor.resetSubqueryExpressions();
             node = new SimpleFilterNode(node, selClause.getWhereExpr());
+        }
 
         /*
         Process group by clause and aggregate function calls if we need to.
@@ -143,6 +160,7 @@ public class SimplePlanner extends AbstractPlannerImpl {
         if (fromClause.isRenamed() && node != null) node = new RenameNode(node, fromClause.getResultName());
         return node;
     }
+
     /**
      * Constructs a simple select plan that reads directly from a table, with
      * an optional predicate for selecting rows.

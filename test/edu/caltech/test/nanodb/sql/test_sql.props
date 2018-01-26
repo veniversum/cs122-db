@@ -496,10 +496,15 @@ setup_testSimpleJoins = \
     CREATE TABLE test_sj_t2 ( b INTEGER); \
     CREATE TABLE test_sj_t3 ( c INTEGER ); \
     CREATE TABLE test_sj_t4 ( d INTEGER ); \
+    CREATE TABLE test_sj_t5 ( e INTEGER, f INTEGER ); \
     INSERT INTO test_sj_t1 VALUES (1); \
     INSERT INTO test_sj_t1 VALUES (3); \
     INSERT INTO test_sj_t2 VALUES (1); \
-    INSERT INTO test_sj_t2 VALUES (5);
+    INSERT INTO test_sj_t2 VALUES (5); \
+    INSERT INTO test_sj_t5 VALUES (15, 0); \
+    INSERT INTO test_sj_t5 VALUES (3, 10); \
+    INSERT INTO test_sj_t5 VALUES (3, 25);
+
 
 
 #============================================================================

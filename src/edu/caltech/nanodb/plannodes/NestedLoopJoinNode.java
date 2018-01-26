@@ -83,6 +83,8 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
 
         buf.append("NestedLoop[");
 
+        buf.append("join type: ").append(joinType).append(", ");
+
         if (predicate != null)
             buf.append("pred:  ").append(predicate);
         else
@@ -188,7 +190,9 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             return null;
 
         while (getTuplesToJoin()) {
+
             if (canJoinTuples()) {
+
                 joined = true;
                 return joinTuples(leftTuple, rightTuple);
             }
@@ -226,7 +230,7 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
         if (predicate == null)
             return true;
         if (rightTuple == null && !joined)
-            return true;
+            return joinType != JoinType.INNER;
 
         environment.clear();
         environment.addTuple(leftSchema, leftTuple);
