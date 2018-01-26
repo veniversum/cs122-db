@@ -8,9 +8,11 @@ import java.util.List;
 
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.expressions.OrderByExpression;
+import edu.caltech.nanodb.expressions.SubqueryOperator;
 import edu.caltech.nanodb.queryeval.ColumnStats;
 import edu.caltech.nanodb.queryeval.PlanCost;
 import edu.caltech.nanodb.queryeval.SelectivityEstimator;
+import org.apache.log4j.Logger;
 
 
 /**
@@ -18,6 +20,9 @@ import edu.caltech.nanodb.queryeval.SelectivityEstimator;
  * predicate.
  */
 public class SimpleFilterNode extends SelectNode {
+
+    /** A logging object for reporting anything interesting that happens. */
+    private static Logger logger = Logger.getLogger(SimpleFilterNode.class);
 
     public SimpleFilterNode(PlanNode child, Expression predicate) {
         super(child, predicate);
@@ -136,6 +141,7 @@ public class SimpleFilterNode extends SelectNode {
 
 
     protected void advanceCurrentTuple() throws IOException {
+        logger.debug("Calling getNextTuple() on child of type " + leftChild.toString());
         currentTuple = leftChild.getNextTuple();
     }
 

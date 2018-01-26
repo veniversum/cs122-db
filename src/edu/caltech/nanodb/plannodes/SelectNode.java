@@ -6,6 +6,7 @@ import java.io.IOException;
 import edu.caltech.nanodb.relations.Tuple;
 
 import edu.caltech.nanodb.expressions.Expression;
+import org.apache.log4j.Logger;
 
 
 /**
@@ -13,6 +14,9 @@ import edu.caltech.nanodb.expressions.Expression;
  * operation.  This is the relational algebra Select operator.
  */
 public abstract class SelectNode extends PlanNode {
+
+    /** A logging object for reporting anything interesting that happens. */
+    private static Logger logger = Logger.getLogger(SelectNode.class);
 
     /** Predicate used for selection. */
     public Expression predicate;
@@ -84,6 +88,8 @@ public abstract class SelectNode extends PlanNode {
      */
     public Tuple getNextTuple() throws IllegalStateException, IOException {
 
+        logger.debug("Fetching next tuple...");
+
         // If this node is finished finding tuples, return null until it is
         // re-initialized.
         if (done)
@@ -125,6 +131,8 @@ public abstract class SelectNode extends PlanNode {
             return true;
 
         // Set up the environment and then evaluate the predicate!
+
+        logger.debug("Check if we want to select the tuple: evaluating predicate " + predicate.toString());
 
         environment.clear();
         environment.addTuple(schema, tuple);

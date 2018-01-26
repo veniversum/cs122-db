@@ -259,6 +259,8 @@ public class FileScanNode extends SelectNode {
      */
     protected void advanceCurrentTuple() throws IOException {
 
+        logger.debug("Getting tuples from file...");
+
         if (jumpToMarkedTuple) {
             logger.debug("Resuming at previously marked tuple.");
             try {

@@ -1,13 +1,18 @@
 package edu.caltech.nanodb.queryeval;
 
 
+import edu.caltech.nanodb.commands.QueryCommand;
 import edu.caltech.nanodb.plannodes.PlanNode;
 
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.Tuple;
+import org.apache.log4j.Logger;
 
 
 public class QueryEvaluator {
+
+    /** A logging object for reporting anything interesting that happens. */
+    private static Logger logger = Logger.getLogger(QueryEvaluator.class);
 
     /**
      * Executes the specified query plan, and feeds the results to the specified
@@ -25,6 +30,8 @@ public class QueryEvaluator {
     public static EvalStats executePlan(PlanNode plan, TupleProcessor processor)
         throws Exception {
 
+        logger.debug("Begun executing plan of type " + plan.toString());
+
         // Execute the plan, and record some basic statistics as we go.
 
         long startTime = System.nanoTime();
@@ -39,6 +46,7 @@ public class QueryEvaluator {
             Tuple tuple;
             while (true) {
                 // Get the next tuple.  If there aren't anymore, we're done!
+                logger.debug("Fetching tuple #" + (rowsProduced+1) + " from the plan...");
                 tuple = plan.getNextTuple();
                 if (tuple == null)
                     break;
