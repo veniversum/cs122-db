@@ -83,6 +83,8 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
 
         buf.append("NestedLoop[");
 
+        buf.append("join type: ").append(joinType).append(", ");
+
         if (predicate != null)
             buf.append("pred:  ").append(predicate);
         else

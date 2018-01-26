@@ -46,7 +46,6 @@ public class QueryEvaluator {
             Tuple tuple;
             while (true) {
                 // Get the next tuple.  If there aren't anymore, we're done!
-                logger.debug("Fetching tuple #" + (rowsProduced+1) + " from the plan...");
                 tuple = plan.getNextTuple();
                 if (tuple == null)
                     break;

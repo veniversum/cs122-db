@@ -88,8 +88,6 @@ public abstract class SelectNode extends PlanNode {
      */
     public Tuple getNextTuple() throws IllegalStateException, IOException {
 
-        logger.debug("Fetching next tuple...");
-
         // If this node is finished finding tuples, return null until it is
         // re-initialized.
         if (done)
