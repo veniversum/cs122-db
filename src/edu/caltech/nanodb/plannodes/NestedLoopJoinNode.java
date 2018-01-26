@@ -189,8 +189,16 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
         if (done)
             return null;
 
+        logger.debug("CALLED!");
+
         while (getTuplesToJoin()) {
+
+            logger.debug("GOT: " + leftTuple + ", " + rightTuple);
+
             if (canJoinTuples()) {
+
+                logger.debug("CAN JOIN!");
+
                 joined = true;
                 return joinTuples(leftTuple, rightTuple);
             }
@@ -225,10 +233,13 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
 
     private boolean canJoinTuples() {
         // If the predicate was not set, we can always join them!
-        if (predicate == null)
+        if (predicate == null) {
+            logger.debug("Predicate is null!");
             return true;
-        if (rightTuple == null && !joined)
-            return true;
+        }
+        if (rightTuple == null && !joined) {
+            return joinType != JoinType.INNER;
+        }
 
         environment.clear();
         environment.addTuple(leftSchema, leftTuple);
