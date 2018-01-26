@@ -34,4 +34,9 @@ public class SubqueryExpressionProcessor implements ExpressionProcessor {
     public List<SubqueryOperator> getSubqueryExpressions() {
         return subqueryExpressions;
     }
+
+    public void resetSubqueryExpressions() {
+        this.subqueryExpressions = new ArrayList<>();
+    }
+
 }

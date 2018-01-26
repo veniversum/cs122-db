@@ -47,6 +47,7 @@ public class SimplePlanner extends AbstractPlannerImpl {
     @Override
     public PlanNode makePlan(SelectClause selClause, List<SelectClause> enclosingSelects) throws IOException {
         final SimpleExpressionProcessor processor = new SimpleExpressionProcessor();
+        final SubqueryExpressionProcessor subProcessor = new SubqueryExpressionProcessor();
         final List<SelectValue> selectValues = selClause.getSelectValues();
 
         /*
@@ -56,6 +57,11 @@ public class SimplePlanner extends AbstractPlannerImpl {
         for (SelectValue sv : selectValues) {
             if (sv.isExpression()) {
                 Expression e = sv.getExpression().traverse(processor);
+                e.traverse(subProcessor);
+                for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
+                    subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
+                }
+                subProcessor.resetSubqueryExpressions();
                 sv.setExpression(e);
             }
         }
@@ -83,12 +89,12 @@ public class SimplePlanner extends AbstractPlannerImpl {
         Filter on the where clause.
          */
         if (selClause.getWhereExpr() != null) {
-            SubqueryExpressionProcessor subProcessor = new SubqueryExpressionProcessor();
             selClause.getWhereExpr().traverse(subProcessor);
             for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
                 // TODO: Replace null with something else
                 subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
             }
+            subProcessor.resetSubqueryExpressions();
             node = new SimpleFilterNode(node, selClause.getWhereExpr());
         }
 
