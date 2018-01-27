@@ -186,13 +186,10 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
      * @throws IOException if a db file failed to open at some point
      */
     public Tuple getNextTuple() throws IOException {
-        if (done)
-            return null;
+        if (done) return null;
 
         while (getTuplesToJoin()) {
-
             if (canJoinTuples()) {
-
                 joined = true;
                 return joinTuples(leftTuple, rightTuple);
             }
