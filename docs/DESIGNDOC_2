@@ -16,8 +16,8 @@ A2.  Specify the repository URL, tag name and commit-hash of the Git version
      of your repository tags with this command:  git show-ref --tags)
 
      Repository URL:  git@github.com:veniversum/cs122-db.git
-     Tag name:        <tag>
-     Commit hash:     <hash>
+     Tag name:        v2.0
+     Commit hash:     b11fe96e817050dc4cae39cd4296a57459c55e18
 
 A3.  Specify any late tokens you are applying to this assignment, or
      "none" if no late tokens.
