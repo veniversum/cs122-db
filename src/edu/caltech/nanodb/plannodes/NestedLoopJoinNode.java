@@ -230,7 +230,7 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
         if (predicate == null)
             return true;
         if (rightTuple == null && !joined)
-            return joinType != JoinType.INNER;
+            return joinType == JoinType.LEFT_OUTER;
 
         environment.clear();
         environment.addTuple(leftSchema, leftTuple);
