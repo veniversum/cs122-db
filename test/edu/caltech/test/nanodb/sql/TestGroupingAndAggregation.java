@@ -498,7 +498,7 @@ public class TestGroupingAndAggregation extends SqlTestCase {
             new TupleLiteral( "Stonewell" , 66000 )
         };
         assert checkSizeResults(expected2, result);
-        assert checkUnorderedResults(expected2, result);
+        assert checkOrderedResults(expected2, result);
     }
     
     

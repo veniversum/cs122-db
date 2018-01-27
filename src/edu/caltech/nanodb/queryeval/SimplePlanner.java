@@ -1,10 +1,7 @@
 package edu.caltech.nanodb.queryeval;
 
 
-import edu.caltech.nanodb.expressions.Expression;
-import edu.caltech.nanodb.expressions.SimpleExpressionProcessor;
-import edu.caltech.nanodb.expressions.SubqueryExpressionProcessor;
-import edu.caltech.nanodb.expressions.SubqueryOperator;
+import edu.caltech.nanodb.expressions.*;
 import edu.caltech.nanodb.plannodes.*;
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
@@ -113,10 +110,17 @@ public class SimplePlanner extends AbstractPlannerImpl {
             node = new SimpleFilterNode(node, havingExpr);
 
         /*
-        Finally, project the results if we need to.
+        Project the results if we need to.
          */
         if (!selClause.isTrivialProject())
             node = new ProjectNode(node, selClause.getSelectValues());
+
+        /*
+        Sort the results if we need to.
+         */
+        final List<OrderByExpression> orderByExprs = selClause.getOrderByExprs();
+        if (orderByExprs.size() > 0)
+            node = new SortNode(node, orderByExprs);
 
         /*
         Optionally, skip a number of rows and limit the total number of output rows.
