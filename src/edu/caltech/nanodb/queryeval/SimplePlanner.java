@@ -7,11 +7,9 @@ import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
 import edu.caltech.nanodb.queryast.SelectValue;
 import edu.caltech.nanodb.relations.TableInfo;
-import org.antlr.stringtemplate.language.Expr;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
