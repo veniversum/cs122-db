@@ -1,26 +1,22 @@
 package edu.caltech.nanodb.plannodes;
 
 
-import java.io.IOException;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.log4j.Logger;
-
+import edu.caltech.nanodb.expressions.Expression;
+import edu.caltech.nanodb.expressions.OrderByExpression;
 import edu.caltech.nanodb.indexes.IndexInfo;
 import edu.caltech.nanodb.queryeval.ColumnStats;
 import edu.caltech.nanodb.queryeval.PlanCost;
 import edu.caltech.nanodb.queryeval.SelectivityEstimator;
 import edu.caltech.nanodb.queryeval.TableStats;
 import edu.caltech.nanodb.relations.TableInfo;
-import edu.caltech.nanodb.relations.Tuple;
 import edu.caltech.nanodb.storage.FilePointer;
-import edu.caltech.nanodb.storage.TupleFile;
 import edu.caltech.nanodb.storage.InvalidFilePointerException;
+import edu.caltech.nanodb.storage.TupleFile;
+import org.apache.log4j.Logger;
 
-import edu.caltech.nanodb.expressions.Expression;
-import edu.caltech.nanodb.expressions.OrderByExpression;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -227,8 +223,12 @@ public class FileScanNode extends SelectNode {
         TableStats tableStats = tupleFile.getStats();
         ArrayList<ColumnStats> fileStats = tableStats.getAllColumnStats();
 
-        // TODO:  Compute the cost of the plan node!
-        cost = null;
+        final float selectivity = SelectivityEstimator.estimateSelectivity(predicate, tableInfo.getSchema(), fileStats);
+        final float numTupleSelected = selectivity * tableStats.numTuples;
+        cost = new PlanCost(numTupleSelected,
+                tableStats.avgTupleSize,
+                tableStats.numTuples,
+                1);
 
         // NOTE:  Normally we would also update the table statistics based on
         //        the predicate, but that's too complicated, so we'll leave

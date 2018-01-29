@@ -107,6 +107,8 @@ public class SelectivityEstimator {
                                             ArrayList<ColumnStats> stats) {
         float selectivity = DEFAULT_SELECTIVITY;
 
+        if (expr == null) return 1;
+
         if (expr instanceof BooleanOperator) {
             // A Boolean AND, OR, or NOT operation.
             BooleanOperator bool = (BooleanOperator) expr;
