@@ -3,6 +3,8 @@ package edu.caltech.nanodb.plannodes;
 
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.expressions.OrderByExpression;
+import edu.caltech.nanodb.queryeval.PlanCost;
+import edu.caltech.nanodb.queryeval.SelectivityEstimator;
 import edu.caltech.nanodb.relations.JoinType;
 import edu.caltech.nanodb.relations.Tuple;
 import org.apache.log4j.Logger;
@@ -164,8 +166,34 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
         // Use the parent class' helper-function to prepare the schema.
         prepareSchemaStats();
 
-        // TODO:  Implement the rest
-        cost = null;
+        // TODO:  Add more sophisticated plan costing.
+        PlanCost leftChildCost = leftChild.getCost();
+        PlanCost rightChildCost = rightChild.getCost();
+        if (leftChildCost != null && rightChildCost != null) {
+            // O(NM) ops inside loop
+            final float crossProductSize = leftChildCost.numTuples * rightChildCost.numTuples;
+            final float selectivity = SelectivityEstimator.estimateSelectivity(predicate, schema, stats);
+
+            cost = new PlanCost(0,
+                    leftChildCost.tupleSize + rightChildCost.tupleSize,
+                    leftChildCost.cpuCost + rightChildCost.cpuCost,
+                    leftChildCost.numBlockIOs + rightChildCost.numBlockIOs);
+            cost.cpuCost += crossProductSize;
+
+            switch (joinType) {
+                case LEFT_OUTER:
+                    cost.numTuples += (1f - selectivity) * leftChildCost.numTuples;
+                case CROSS:
+                case INNER:
+                    cost.numTuples += selectivity * crossProductSize;
+                    break;
+                default:
+                    throw new UnsupportedOperationException("Unsupported join type " + joinType);
+            }
+        } else {
+            logger.info(
+                    "Child's cost not available; not computing this node's cost.");
+        }
     }
 
 
