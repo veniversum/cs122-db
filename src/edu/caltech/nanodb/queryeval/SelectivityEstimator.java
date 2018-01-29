@@ -1,22 +1,15 @@
 package edu.caltech.nanodb.queryeval;
 
 
-import java.util.ArrayList;
-import java.util.HashSet;
-
-import edu.caltech.nanodb.expressions.ArithmeticOperator;
-import edu.caltech.nanodb.expressions.BooleanOperator;
-import edu.caltech.nanodb.expressions.ColumnValue;
-import edu.caltech.nanodb.expressions.CompareOperator;
-import edu.caltech.nanodb.expressions.Expression;
-import edu.caltech.nanodb.expressions.LiteralValue;
-import edu.caltech.nanodb.expressions.TypeConverter;
-
+import edu.caltech.nanodb.expressions.*;
 import edu.caltech.nanodb.relations.ColumnInfo;
 import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Schema;
-
 import org.apache.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.stream.IntStream;
 
 
 /**
@@ -149,17 +142,27 @@ public class SelectivityEstimator {
 
         float selectivity = 1.0f;
 
+        /* WARNING
+        We assume strong (naive) independence conditions between boolean terms.
+        Estimates may be wildly off if the terms are strongly correlated.
+        */
         switch (bool.getType()) {
         case AND_EXPR:
-            // TODO:  Compute selectivity of AND expression.
+            selectivity = (float) IntStream.range(0, bool.getNumTerms())
+                    .mapToObj(bool::getTerm)
+                    .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
+                    .reduce(1, (a, b) -> a * b);
             break;
 
         case OR_EXPR:
-            // TODO:  Compute selectivity of OR expression.
+            selectivity = (float) IntStream.range(0, bool.getNumTerms())
+                    .mapToObj(bool::getTerm)
+                    .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
+                    .sum();
             break;
 
         case NOT_EXPR:
-            // TODO:  Compute selectivity of NOT expression.
+            selectivity = 1f - estimateSelectivity(bool.getTerm(0), exprSchema, stats);
             break;
 
         default:
@@ -170,7 +173,8 @@ public class SelectivityEstimator {
         logger.debug("Estimated selectivity of Boolean operator \"" + bool +
             "\" as " + selectivity);
 
-        return selectivity;
+        // Clip selectivity to [0, 1]
+        return Float.min(1, selectivity);
     }
 
 
