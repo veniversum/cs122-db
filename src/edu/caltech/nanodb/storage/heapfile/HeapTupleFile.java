@@ -1,28 +1,22 @@
 package edu.caltech.nanodb.storage.heapfile;
 
 
-import java.io.EOFException;
-import java.io.IOException;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
+import edu.caltech.nanodb.queryeval.ColumnStats;
+import edu.caltech.nanodb.queryeval.ColumnStatsCollector;
+import edu.caltech.nanodb.queryeval.TableStats;
+import edu.caltech.nanodb.relations.ColumnInfo;
+import edu.caltech.nanodb.relations.TableSchema;
+import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.storage.*;
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import org.apache.log4j.Logger;
 
-import edu.caltech.nanodb.queryeval.TableStats;
-import edu.caltech.nanodb.relations.TableSchema;
-import edu.caltech.nanodb.relations.Tuple;
-
-import edu.caltech.nanodb.storage.DBFile;
-import edu.caltech.nanodb.storage.DBPage;
-import edu.caltech.nanodb.storage.FilePointer;
-import edu.caltech.nanodb.storage.TupleFile;
-import edu.caltech.nanodb.storage.InvalidFilePointerException;
-import edu.caltech.nanodb.storage.PageTuple;
-import edu.caltech.nanodb.storage.StorageManager;
-import edu.caltech.nanodb.storage.TupleFileManager;
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 /**
@@ -448,8 +442,56 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
     @Override
     public void analyze() throws IOException {
-        // TODO:  Complete this implementation.
-        throw new UnsupportedOperationException("Not yet implemented!");
+        // Create list of ColumnStatsCollector based on table schema
+        List<ColumnStatsCollector> collectors = schema.getColumnInfos().stream()
+                .map((ColumnInfo c) -> new ColumnStatsCollector(c.getType().getBaseType()))
+                .collect(Collectors.toList());
+
+        // Header page is page 0, so first data page is page 1.
+        int iPage = 1;
+        int numDataPages = 0;
+        int numTuples = 0;
+        double totalTupleSize = 0;
+        boolean eof = false;
+
+        // Scan through the data pages until we hit the end of the table file.
+        while (!eof) {
+            // Look for data on current page.
+            try (DBPage dbPage = storageManager.loadDBPage(dbFile, iPage)) {
+                numDataPages++;
+                int numSlots = DataPage.getNumSlots(dbPage);
+                for (int iSlot = 0; iSlot < numSlots; iSlot++) {
+                    // Get the offset of the tuple in the page.  If it's 0 then
+                    // the slot is empty, and we skip to the next slot.
+                    int offset = DataPage.getSlotValue(dbPage, iSlot);
+                    if (offset == DataPage.EMPTY_SLOT) continue;
+
+                    // Add tuple to column stats records
+                    HeapFilePageTuple t = new HeapFilePageTuple(schema, dbPage, iSlot, offset);
+                    numTuples++;
+                    totalTupleSize += t.getSize();
+                    for (int i = 0; i < collectors.size(); i++) {
+                        collectors.get(i).addValue(t.getColumnValue(i));
+                    }
+                }
+                iPage++;
+            } catch (EOFException e) {
+                // We ran out of pages.
+                eof = true;
+            }
+        }
+
+        final ArrayList<ColumnStats> columnStats = collectors.stream()
+                .map(ColumnStatsCollector::getColumnStats)
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        stats = new TableStats(
+                numDataPages,
+                numTuples,
+                (float) (totalTupleSize / numTuples),
+                columnStats);
+
+        heapFileManager.saveMetadata(this);
     }
 
 
