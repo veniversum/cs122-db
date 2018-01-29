@@ -459,6 +459,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             // Look for data on current page.
             try (DBPage dbPage = storageManager.loadDBPage(dbFile, iPage)) {
                 numDataPages++;
+                totalTupleSize += DataPage.getTupleDataEnd(dbPage) - DataPage.getTupleDataStart(dbPage);
                 int numSlots = DataPage.getNumSlots(dbPage);
                 for (int iSlot = 0; iSlot < numSlots; iSlot++) {
                     // Get the offset of the tuple in the page.  If it's 0 then
@@ -469,7 +470,6 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
                     // Add tuple to column stats records
                     HeapFilePageTuple t = new HeapFilePageTuple(schema, dbPage, iSlot, offset);
                     numTuples++;
-                    totalTupleSize += t.getSize();
                     for (int i = 0; i < collectors.size(); i++) {
                         collectors.get(i).addValue(t.getColumnValue(i));
                     }
