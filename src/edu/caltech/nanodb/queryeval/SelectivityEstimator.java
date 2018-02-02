@@ -276,11 +276,13 @@ public class SelectivityEstimator {
             // Compute the equality value.  Then, if inequality, invert the
             // result.
 
-
-            // TODO:  Compute the selectivity.  Note that the ColumnStats type
-            //        will return special values to indicate "unknown" stats;
-            //        your code should detect when this is the case, and fall
-            //        back on the default selectivity.
+            final int numUniqueValues = colStats.getNumUniqueValues();
+            if (numUniqueValues > 0) {
+                selectivity = 1f / numUniqueValues;
+                if (compType == CompareOperator.Type.NOT_EQUALS) {
+                    selectivity = 1f - selectivity;
+                }
+            } // else unknown, so use default selectivity.
 
             break;
 
@@ -367,6 +369,20 @@ public class SelectivityEstimator {
         ColumnStats colOneStats = stats.get(colOneIndex);
         ColumnStats colTwoStats = stats.get(colTwoIndex);
 
+        final int numUniqueValues1 = colOneStats.getNumUniqueValues();
+        final int numUniqueValues2 = colTwoStats.getNumUniqueValues();
+        if (numUniqueValues1 > 0 && numUniqueValues2 > 0) {
+            switch (compType) {
+                case NOT_EQUALS:
+                case EQUALS:
+                    selectivity = (float) Math.min(numUniqueValues1, numUniqueValues2)
+                            / (numUniqueValues1 * numUniqueValues2);
+                    if (compType == CompareOperator.Type.NOT_EQUALS) selectivity = 1 - selectivity;
+                    break;
+                default:
+                    break;
+            }
+        }
         // TODO:  Compute the selectivity.  Note that the ColumnStats type
         //        will return special values to indicate "unknown" stats;
         //        your code should detect when this is the case, and fall
