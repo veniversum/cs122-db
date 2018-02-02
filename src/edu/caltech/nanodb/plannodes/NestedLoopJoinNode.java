@@ -166,7 +166,6 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
         // Use the parent class' helper-function to prepare the schema.
         prepareSchemaStats();
 
-        // TODO:  Add more sophisticated plan costing.
         PlanCost leftChildCost = leftChild.getCost();
         PlanCost rightChildCost = rightChild.getCost();
         if (leftChildCost != null && rightChildCost != null) {
@@ -174,22 +173,29 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             final float crossProductSize = leftChildCost.numTuples * rightChildCost.numTuples;
             final float selectivity = SelectivityEstimator.estimateSelectivity(predicate, schema, stats);
 
+            // TODO support tuple size for joins which return less columns than the sum of the 2 tables.
             cost = new PlanCost(0,
                     leftChildCost.tupleSize + rightChildCost.tupleSize,
                     leftChildCost.cpuCost + rightChildCost.cpuCost,
-                    leftChildCost.numBlockIOs + rightChildCost.numBlockIOs);
-            cost.cpuCost += crossProductSize;
+                    leftChildCost.numBlockIOs + leftChildCost.numBlockIOs * rightChildCost.numBlockIOs);
 
+            // Comparison of tuples requires CPU time.
+            cost.cpuCost += crossProductSize;
+            int numTuplesCreated = 0;
             switch (joinType) {
                 case LEFT_OUTER:
-                    cost.numTuples += (1f - selectivity) * leftChildCost.numTuples;
+                    numTuplesCreated += (1f - selectivity) * leftChildCost.numTuples;
                 case CROSS:
                 case INNER:
-                    cost.numTuples += selectivity * crossProductSize;
+                    numTuplesCreated += selectivity * crossProductSize;
                     break;
                 default:
                     throw new UnsupportedOperationException("Unsupported join type " + joinType);
             }
+
+            // Creation of joined tuple requires CPU time.
+            cost.cpuCost += numTuplesCreated;
+            cost.numTuples += numTuplesCreated;
         } else {
             logger.info(
                     "Child's cost not available; not computing this node's cost.");
