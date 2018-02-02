@@ -149,15 +149,16 @@ public class SelectivityEstimator {
 
         List<Object> literalValues = new ArrayList<>();
         for (Expression valueExpr : valueExpressions) {
-            if (valueExpr == null) {
-                if (!containsNull) {
-                    containsNull = true;
-                }
-                continue;
-            }
-
             if (valueExpr instanceof LiteralValue) {
                 Object litVal = valueExpr.evaluate();
+
+                if (litVal == null) {
+                    if (!containsNull) {
+                        containsNull = true;
+                    }
+                    continue;
+                }
+
                 literalValues.add(litVal);
             } else {
                 relevantVals++;
