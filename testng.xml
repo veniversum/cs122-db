@@ -48,6 +48,12 @@
     </packages>
   </test>
 
+  <test name="assignment3-tests">
+    <packages>
+      <package name="edu.caltech.test.nanodb.costing" />
+    </packages>
+  </test>
+
   <test name="assignment5-tests">
     <classes>
       <class name="edu.caltech.test.nanodb.sql.TestScalarSubquery" />
