@@ -106,8 +106,7 @@ public class SelectivityEstimator {
             InValuesOperator inVal = (InValuesOperator) expr;
             selectivity = estimateInValOperSelectiviy(inVal, exprSchema, stats);
         }
-
-        if (expr instanceof BooleanOperator) {
+        else if (expr instanceof BooleanOperator) {
             // A Boolean AND, OR, or NOT operation.
             BooleanOperator bool = (BooleanOperator) expr;
             selectivity = estimateBoolOperSelectivity(bool, exprSchema, stats);
@@ -137,36 +136,48 @@ public class SelectivityEstimator {
     public static float estimateInValOperSelectiviy(InValuesOperator inVal,
         Schema exprSchema, ArrayList<ColumnStats> stats) {
 
-        Object[] values = Arrays.stream(inVal.getValues().toArray())
-                .map(e -> {
-                    ((Expression) e).evaluate();
-                    return ((Expression) e).evaluate();
-                })
-                .toArray();
+        float selectivity = DEFAULT_SELECTIVITY;
 
-        ColumnInfo colInfo = inVal.getColumnInfo(exprSchema);
+        List<Expression> valueExpressions = inVal.getValues();
+        ColumnInfo colInfo = exprSchema.getColumnInfo(0);
         int colIndex = exprSchema.getColumnIndex(colInfo.getColumnName());
         ColumnStats colStats = stats.get(colIndex);
 
         long relevantVals = 0;
         long totalValsInCol = colStats.getNumUniqueValues();
-        if(Arrays.stream(values).anyMatch(Objects::isNull))
-            totalValsInCol++;
+        boolean containsNull = false;
+
+        List<Object> literalValues = new ArrayList<>();
+        for (Expression valueExpr : valueExpressions) {
+            if (valueExpr == null) {
+                if (!containsNull) {
+                    containsNull = true;
+                }
+                continue;
+            }
+
+            if (valueExpr instanceof LiteralValue) {
+                Object litVal = valueExpr.evaluate();
+                literalValues.add(litVal);
+            } else {
+                relevantVals++;
+            }
+        }
 
         if (colStats.hasDifferentMinMaxValues()) {
             Comparable max = (Comparable) colStats.getMaxValue();
             Comparable min = (Comparable) colStats.getMinValue();
-            relevantVals = Arrays.stream(values)
-                    .distinct()
-                    .filter(value -> max.compareTo(value) > -1 && min.compareTo(value) < 1)
+            relevantVals += literalValues.stream()
+                    .filter(val -> max.compareTo(val) > -1
+                            && min.compareTo(val) < 1)
                     .count();
         } else {
-            relevantVals = Arrays.stream(values)
-                .distinct()
-                .count();
+            relevantVals += literalValues.stream().distinct().count();
         }
 
-        return relevantVals / (float) totalValsInCol;
+        selectivity = relevantVals / (float) totalValsInCol;
+
+        return selectivity;
     }
 
     /**
