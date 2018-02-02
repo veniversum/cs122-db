@@ -6,10 +6,13 @@ import edu.caltech.nanodb.relations.ColumnInfo;
 import edu.caltech.nanodb.relations.ColumnType;
 import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Schema;
+import javafx.util.Pair;
 import org.apache.log4j.Logger;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 
 /**
@@ -105,13 +108,11 @@ public class SelectivityEstimator {
         if (expr instanceof InValuesOperator) {
             InValuesOperator inVal = (InValuesOperator) expr;
             selectivity = estimateInValOperSelectiviy(inVal, exprSchema, stats);
-        }
-        else if (expr instanceof BooleanOperator) {
+        } else if (expr instanceof BooleanOperator) {
             // A Boolean AND, OR, or NOT operation.
             BooleanOperator bool = (BooleanOperator) expr;
             selectivity = estimateBoolOperSelectivity(bool, exprSchema, stats);
-        }
-        else if (expr instanceof CompareOperator) {
+        } else if (expr instanceof CompareOperator) {
             // This is a simple comparison between expressions.
             CompareOperator comp = (CompareOperator) expr;
             selectivity = estimateCompareSelectivity(comp, exprSchema, stats);
@@ -137,7 +138,7 @@ public class SelectivityEstimator {
      * @return a selectivity estimate in the range [0, 1].
      */
     public static float estimateInValOperSelectiviy(InValuesOperator inVal,
-        Schema exprSchema, ArrayList<ColumnStats> stats) {
+                                                    Schema exprSchema, ArrayList<ColumnStats> stats) {
 
         float selectivity = DEFAULT_SELECTIVITY;
 
@@ -212,7 +213,7 @@ public class SelectivityEstimator {
      * @return a selectivity estimate in the range [0, 1].
      */
     public static float estimateBoolOperSelectivity(BooleanOperator bool,
-        Schema exprSchema, ArrayList<ColumnStats> stats) {
+                                                    Schema exprSchema, ArrayList<ColumnStats> stats) {
 
         float selectivity = 1.0f;
 
@@ -221,34 +222,84 @@ public class SelectivityEstimator {
         Estimates may be wildly off if the terms are strongly correlated.
         */
         switch (bool.getType()) {
-        case AND_EXPR:
-            selectivity = (float) IntStream.range(0, bool.getNumTerms())
-                    .mapToObj(bool::getTerm)
-                    .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
-                    .reduce(1, (a, b) -> a * b);
-            break;
+            case AND_EXPR:
+                selectivity = (float) IntStream.range(0, bool.getNumTerms())
+                        .mapToObj(bool::getTerm)
+                        .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
+                        .reduce(1, (a, b) -> a * b);
+                break;
 
-        case OR_EXPR:
-            selectivity = (float) IntStream.range(0, bool.getNumTerms())
-                    .mapToObj(bool::getTerm)
-                    .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
-                    .sum();
-            break;
+            case OR_EXPR:
 
-        case NOT_EXPR:
-            selectivity = 1f - estimateSelectivity(bool.getTerm(0), exprSchema, stats);
-            break;
+                List<Expression> terms = new ArrayList<>();
+                for (int i = 0; i < bool.getNumTerms(); i++)
+                    terms.add(bool.getTerm(i));
 
-        default:
-            // Shouldn't have any other Boolean expression types.
-            assert false : "Unexpected Boolean operator type:  " + bool.getType();
+
+                // Check if we can treat this OR as `col IN (values)`
+                Pair<Expression, ArrayList<Expression>> inValuePair
+                        = attemptConvertOrToInValues(terms);
+
+                if (inValuePair != null) {
+                    InValuesOperator inValOp = new InValuesOperator
+                            (inValuePair.getKey(), inValuePair.getValue());
+                    selectivity = estimateInValOperSelectiviy(inValOp,
+                            exprSchema, stats);
+                } else {
+                    selectivity = (float) terms.stream()
+                            .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
+                            .sum();
+                }
+                break;
+
+            case NOT_EXPR:
+                selectivity = 1f - estimateSelectivity(bool.getTerm(0), exprSchema, stats);
+                break;
+
+            default:
+                // Shouldn't have any other Boolean expression types.
+                assert false : "Unexpected Boolean operator type:  " + bool.getType();
         }
 
         logger.debug("Estimated selectivity of Boolean operator \"" + bool +
-            "\" as " + selectivity);
+                "\" as " + selectivity);
 
         // Clip selectivity to [0, 1]
         return Float.min(1, selectivity);
+    }
+
+
+    private static Pair<Expression, ArrayList<Expression>>
+    attemptConvertOrToInValues(List<Expression> terms) {
+        ArrayList<Expression> inValuesExprs = new ArrayList<>();
+        String columnName = null;
+        Expression colExpr = null;
+
+        for (Expression term : terms) {
+            if (!(term instanceof CompareOperator)) return null;
+            CompareOperator comp = (CompareOperator) term;
+            comp.normalize();
+
+            Expression left = comp.getLeftExpression();
+            Expression right = comp.getRightExpression();
+
+            if (comp.getType() != CompareOperator.Type.EQUALS
+                    || !(left instanceof ColumnValue)
+                    || right instanceof ColumnValue)
+                return null;
+
+            String currColumn = ((ColumnValue) left)
+                    .getColumnName().getColumnName();
+
+            if (columnName == null) {
+                columnName = currColumn;
+                colExpr = left;
+            } else if (!columnName.equals(currColumn)) return null;
+
+            inValuesExprs.add(right);
+        }
+
+        return new Pair<>(colExpr, inValuesExprs);
     }
 
 
@@ -270,7 +321,7 @@ public class SelectivityEstimator {
      * @return a selectivity estimate in the range [0, 1].
      */
     public static float estimateCompareSelectivity(CompareOperator comp,
-        Schema exprSchema, ArrayList<ColumnStats> stats) {
+                                                   Schema exprSchema, ArrayList<ColumnStats> stats) {
 
         float selectivity = DEFAULT_SELECTIVITY;
 
@@ -288,18 +339,17 @@ public class SelectivityEstimator {
         if (left instanceof ColumnValue && right instanceof LiteralValue) {
             // Comparison:  column op value
             selectivity = estimateCompareColumnValue(comp.getType(),
-                (ColumnValue) left, (LiteralValue) right, exprSchema, stats);
+                    (ColumnValue) left, (LiteralValue) right, exprSchema, stats);
 
             logger.debug("Estimated selectivity of cmp-col-val operator \"" +
-                comp + "\" as " + selectivity);
-        }
-        else if (left instanceof ColumnValue && right instanceof ColumnValue) {
+                    comp + "\" as " + selectivity);
+        } else if (left instanceof ColumnValue && right instanceof ColumnValue) {
             // Comparison:  column op column
             selectivity = estimateCompareColumnColumn(comp.getType(),
-                (ColumnValue) left, (ColumnValue) right, exprSchema, stats);
+                    (ColumnValue) left, (ColumnValue) right, exprSchema, stats);
 
             logger.debug("Estimated selectivity of cmp-col-col operator \"" +
-                comp + "\" as " + selectivity);
+                    comp + "\" as " + selectivity);
         }
 
         return selectivity;
@@ -328,8 +378,8 @@ public class SelectivityEstimator {
      * @return a selectivity estimate in the range [0, 1].
      */
     private static float estimateCompareColumnValue(CompareOperator.Type compType,
-        ColumnValue columnValue, LiteralValue literalValue,
-        Schema exprSchema, ArrayList<ColumnStats> stats) {
+                                                    ColumnValue columnValue, LiteralValue literalValue,
+                                                    Schema exprSchema, ArrayList<ColumnStats> stats) {
 
         // Comparison:  column op value
 
@@ -345,64 +395,64 @@ public class SelectivityEstimator {
         Object value = literalValue.evaluate();
 
         switch (compType) {
-        case EQUALS:
-        case NOT_EQUALS:
-            // Compute the equality value.  Then, if inequality, invert the
-            // result.
+            case EQUALS:
+            case NOT_EQUALS:
+                // Compute the equality value.  Then, if inequality, invert the
+                // result.
 
-            final int numUniqueValues = colStats.getNumUniqueValues();
-            if (numUniqueValues > 0) {
-                selectivity = 1f / numUniqueValues;
-                if (compType == CompareOperator.Type.NOT_EQUALS) {
-                    selectivity = 1f - selectivity;
+                final int numUniqueValues = colStats.getNumUniqueValues();
+                if (numUniqueValues > 0) {
+                    selectivity = 1f / numUniqueValues;
+                    if (compType == CompareOperator.Type.NOT_EQUALS) {
+                        selectivity = 1f - selectivity;
+                    }
+                } // else unknown, so use default selectivity.
+
+                break;
+
+            case GREATER_OR_EQUAL:
+            case LESS_THAN:
+                // Compute the greater-or-equal value.  Then, if less-than,
+                // invert the result.
+
+                // Only estimate selectivity for this kind of expression if the
+                // column's type supports it.
+
+                if (typeSupportsCompareEstimates(sqlType) &&
+                        colStats.hasDifferentMinMaxValues()) {
+
+                    selectivity = computeRatio(value, colStats.getMaxValue(), colStats.getMinValue(), colStats.getMaxValue());
+
+                    if (compType == CompareOperator.Type.LESS_THAN) {
+                        selectivity = 1f - selectivity;
+                    }
                 }
-            } // else unknown, so use default selectivity.
 
-            break;
+                break;
 
-        case GREATER_OR_EQUAL:
-        case LESS_THAN:
-            // Compute the greater-or-equal value.  Then, if less-than,
-            // invert the result.
+            case LESS_OR_EQUAL:
+            case GREATER_THAN:
+                // Compute the less-or-equal value.  Then, if greater-than,
+                // invert the result.
 
-            // Only estimate selectivity for this kind of expression if the
-            // column's type supports it.
+                // Only estimate selectivity for this kind of expression if the
+                // column's type supports it.
 
-            if (typeSupportsCompareEstimates(sqlType) &&
-                colStats.hasDifferentMinMaxValues()) {
+                if (typeSupportsCompareEstimates(sqlType) &&
+                        colStats.hasDifferentMinMaxValues()) {
 
-                selectivity = computeRatio(value, colStats.getMaxValue(), colStats.getMinValue(), colStats.getMaxValue());
+                    selectivity = computeRatio(colStats.getMinValue(), value, colStats.getMinValue(), colStats.getMaxValue());
 
-                if (compType == CompareOperator.Type.LESS_THAN) {
-                    selectivity = 1f - selectivity;
+                    if (compType == CompareOperator.Type.GREATER_THAN) {
+                        selectivity = 1f - selectivity;
+                    }
                 }
-            }
 
-            break;
+                break;
 
-        case LESS_OR_EQUAL:
-        case GREATER_THAN:
-            // Compute the less-or-equal value.  Then, if greater-than,
-            // invert the result.
-
-            // Only estimate selectivity for this kind of expression if the
-            // column's type supports it.
-
-            if (typeSupportsCompareEstimates(sqlType) &&
-                colStats.hasDifferentMinMaxValues()) {
-
-                selectivity = computeRatio(colStats.getMinValue(), value, colStats.getMinValue(), colStats.getMaxValue());
-
-                if (compType == CompareOperator.Type.GREATER_THAN) {
-                    selectivity = 1f - selectivity;
-                }
-            }
-
-            break;
-
-        default:
-            // Shouldn't be any other comparison types...
-            assert false : "Unexpected compare-operator type:  " + compType;
+            default:
+                // Shouldn't be any other comparison types...
+                assert false : "Unexpected compare-operator type:  " + compType;
         }
 
         return selectivity;
@@ -428,8 +478,8 @@ public class SelectivityEstimator {
      * @return a selectivity estimate in the range [0, 1].
      */
     private static float estimateCompareColumnColumn(CompareOperator.Type compType,
-        ColumnValue columnOne, ColumnValue columnTwo,
-        Schema exprSchema, ArrayList<ColumnStats> stats) {
+                                                     ColumnValue columnOne, ColumnValue columnTwo,
+                                                     Schema exprSchema, ArrayList<ColumnStats> stats) {
 
         // Comparison:  column op column
 
@@ -491,18 +541,18 @@ public class SelectivityEstimator {
                                       Object low2, Object high2) {
 
         Object diff1 = ArithmeticOperator.evalObjects(
-            ArithmeticOperator.Type.SUBTRACT, high1, low1);
+                ArithmeticOperator.Type.SUBTRACT, high1, low1);
 
         Object diff2 = ArithmeticOperator.evalObjects(
-            ArithmeticOperator.Type.SUBTRACT, high2, low2);
+                ArithmeticOperator.Type.SUBTRACT, high2, low2);
 
         Object ratio = ArithmeticOperator.evalObjects(
-            ArithmeticOperator.Type.DIVIDE, diff1, diff2);
+                ArithmeticOperator.Type.DIVIDE, diff1, diff2);
 
         float fltRatio = TypeConverter.getFloatValue(ratio);
 
         logger.debug(String.format("Ratio:  (%s - %s) / (%s - %s) = %.2f",
-            high1, low1, high2, low2, fltRatio));
+                high1, low1, high2, low2, fltRatio));
 
         // Clamp the value to the range [0, 1].
         if (fltRatio < 0.0f)
