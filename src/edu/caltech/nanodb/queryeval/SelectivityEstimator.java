@@ -138,9 +138,13 @@ public class SelectivityEstimator {
 
         float selectivity = DEFAULT_SELECTIVITY;
 
+        // Check thta the value on the left is a column name
+        Expression lhsExpression = inVal.getLeftExpression();
+        if (!(lhsExpression instanceof ColumnValue)) return selectivity;
+        ColumnValue colVal = (ColumnValue) lhsExpression;
+
         List<Expression> valueExpressions = inVal.getValues();
-        ColumnInfo colInfo = exprSchema.getColumnInfo(0);
-        int colIndex = exprSchema.getColumnIndex(colInfo.getColumnName());
+        int colIndex = exprSchema.getColumnIndex(colVal.getColumnName());
         ColumnStats colStats = stats.get(colIndex);
 
         long relevantVals = 0;

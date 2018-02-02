@@ -135,6 +135,11 @@ public class InValuesOperator extends Expression {
         return buf.toString();
     }
 
+    /**
+     *
+     * @return expression on the left hand side of the IN (values) operator.
+     */
+    public Expression getLeftExpression() { return expr; }
 
     /**
      * If the <tt>IN</tt> operation has a list of values on the righthand side,
