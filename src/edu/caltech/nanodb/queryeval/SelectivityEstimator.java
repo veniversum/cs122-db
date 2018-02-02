@@ -276,6 +276,7 @@ public class SelectivityEstimator {
             // Compute the equality value.  Then, if inequality, invert the
             // result.
 
+
             // TODO:  Compute the selectivity.  Note that the ColumnStats type
             //        will return special values to indicate "unknown" stats;
             //        your code should detect when this is the case, and fall
@@ -294,9 +295,11 @@ public class SelectivityEstimator {
             if (typeSupportsCompareEstimates(sqlType) &&
                 colStats.hasDifferentMinMaxValues()) {
 
-                // TODO:  Compute the selectivity.  The if-condition ensures
-                //        that you will only compute selectivities if the type
-                //        supports it, and if there are valid stats.
+                selectivity = computeRatio(value, colStats.getMaxValue(), colStats.getMinValue(), colStats.getMaxValue());
+
+                if (compType == CompareOperator.Type.LESS_THAN) {
+                    selectivity = 1f - selectivity;
+                }
             }
 
             break;
@@ -312,8 +315,11 @@ public class SelectivityEstimator {
             if (typeSupportsCompareEstimates(sqlType) &&
                 colStats.hasDifferentMinMaxValues()) {
 
-                // TODO:  Compute the selectivity.  Watch out for copy-paste
-                //        bugs...
+                selectivity = computeRatio(colStats.getMinValue(), value, colStats.getMinValue(), colStats.getMaxValue());
+
+                if (compType == CompareOperator.Type.GREATER_THAN) {
+                    selectivity = 1f - selectivity;
+                }
             }
 
             break;
