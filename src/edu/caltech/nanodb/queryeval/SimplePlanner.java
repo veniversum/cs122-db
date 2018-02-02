@@ -77,20 +77,28 @@ public class SimplePlanner extends AbstractPlannerImpl {
         Process the from clause, by construction of join nodes,
         subqueries, renaming table, etc. See deconstructFrom().
          */
+        PlanNode node;
         final FromClause fromClause = selClause.getFromClause();
-        PlanNode node = deconstructFrom(fromClause);
+        if (fromClause != null && fromClause.isBaseTable()) {
+            node = makeSimpleSelect(fromClause.getTableName(), selClause.getWhereExpr(), enclosingSelects);
+        } else {
+            node = deconstructFrom(fromClause);
+        }
 
         /*
         Filter on the where clause.
          */
         if (selClause.getWhereExpr() != null) {
-            selClause.getWhereExpr().traverse(subProcessor);
-            for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
-                // TODO: Replace null with something else
-                subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
+            assert fromClause != null;
+            if (!fromClause.isBaseTable()) {
+                selClause.getWhereExpr().traverse(subProcessor);
+                for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
+                    // TODO: Replace null with something else
+                    subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
+                }
+                subProcessor.resetSubqueryExpressions();
+                node = new SimpleFilterNode(node, selClause.getWhereExpr());
             }
-            subProcessor.resetSubqueryExpressions();
-            node = new SimpleFilterNode(node, selClause.getWhereExpr());
         }
 
         /*
