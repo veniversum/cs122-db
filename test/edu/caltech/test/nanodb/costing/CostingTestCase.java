@@ -5,9 +5,11 @@ import edu.caltech.nanodb.storage.StorageManager;
 import edu.caltech.nanodb.storage.TableManager;
 import edu.caltech.test.nanodb.sql.SqlTestCase;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import java.util.HashMap;
 
+@Test(enabled=false)
 public abstract class CostingTestCase extends SqlTestCase {
 
     private String[] tables;
@@ -16,13 +18,14 @@ public abstract class CostingTestCase extends SqlTestCase {
     public CostingTestCase(String sqlPropName, String[] tables) {
         super(sqlPropName);
         this.tables = tables;
-        this.tableInfoMap = new HashMap<>();
     }
 
     @BeforeClass
     @Override
     public void beforeClass() throws Exception {
         super.beforeClass();
+
+        this.tableInfoMap = new HashMap<>();
 
         // Analyze all tables to make sure they're ready for the tests.
         // Save all of the TableStats to hashmap that will be accessed in tests.
@@ -33,6 +36,14 @@ public abstract class CostingTestCase extends SqlTestCase {
             tableManager.analyzeTable(tableInfo);
             tableInfoMap.put(table, tableInfo);
         }
+    }
+
+    protected boolean checkSelectivity(float actual, float expected) {
+        float THRESHOLD = 0.005f;
+        float difference = Math.abs(actual - expected);
+        assert difference < THRESHOLD : String
+                .format("Expected selectivity %f, got %f.", expected, actual);
+        return true;
     }
 
     /**

@@ -16,8 +16,15 @@ import java.util.Arrays;
 @Test
 public class TestInValuesOperatorCosting extends CostingTestCase {
 
+    private static final String[] tableNames = new String[]{
+            "test_inval_t1",
+            "test_inval_t2",
+            "test_inval_t3"
+    };
     private enum Tables {
-        T1("test_inval_t1");
+        T1("test_inval_t1"),
+        T2("test_inval_t2"),
+        T3("test_inval_t3");
 
         private final String tableName;
 
@@ -31,45 +38,130 @@ public class TestInValuesOperatorCosting extends CostingTestCase {
     }
 
     public TestInValuesOperatorCosting() {
-        super("setup_testInValuesOperator",
-                (String[]) Arrays.stream(Tables.values())
-                        .map(Tables::toString)
-                        .toArray());
+        super("setup_testInValuesOperator", tableNames);
     }
 
-    public void testUniformLiteralInValues() throws Throwable {
+    @Override
+    public void testTablesAreReady() throws Throwable {
+        super.testTablesAreReady();
+    }
+
+    /**
+     * Tests that selectivity is calculated correctly when the column which
+     * InValuesOperator is used on contains uniformly distributed values
+     **/
+    public void testInValuesUniformLiteral() {
         float selectivity;
 
         ColumnName colName = new ColumnName("TEST_INVAL_T1", "A");
         ColumnValue colVal = new ColumnValue(colName);
-        TableInfo t1Info = tableInfoMap.get(Tables.T1.toString());
+        TableInfo tableInfo = tableInfoMap.get(Tables.T1.toString());
 
         Object[] values1 = {1, 5};
         selectivity = SelectivityEstimator
                 .estimateInValOperSelectiviy(
                         new InValuesOperator(colVal, prepareLitExprs(values1)),
-                        t1Info.getSchema(),
-                        t1Info.getTupleFile().getStats().getAllColumnStats());
-        assert selectivity == 0.25f;
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0.25f);
 
         Object[] values2 = {5, 6, 7, 8};
         selectivity = SelectivityEstimator
                 .estimateInValOperSelectiviy(
                         new InValuesOperator(colVal, prepareLitExprs(values2)),
-                        t1Info.getSchema(),
-                        t1Info.getTupleFile().getStats().getAllColumnStats());
-        assert selectivity == 0f;
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0f);
 
         Object[] values3 = {1, 2, 3, 4};
         selectivity = SelectivityEstimator
                 .estimateInValOperSelectiviy(
                         new InValuesOperator(colVal, prepareLitExprs(values3)),
-                        t1Info.getSchema(),
-                        t1Info.getTupleFile().getStats().getAllColumnStats());
-        assert selectivity == 1f;
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 1f);
 
     }
 
+    /**
+     * Tests that selectivity is calculated correctly when the column which
+     * InValuesOperator is used on contains varchar's (without any nulls)
+     **/
+    public void testInValuesVarcharNoNull() {
+
+        float selectivity;
+
+        ColumnName colName = new ColumnName("TEST_INVAL_T2", "A");
+        ColumnValue colVal = new ColumnValue(colName);
+        TableInfo tableInfo = tableInfoMap.get(Tables.T2.toString());
+
+        Object[] values1 = {'t', 'n'};
+        selectivity = SelectivityEstimator
+                .estimateInValOperSelectiviy(
+                        new InValuesOperator(colVal, prepareLitExprs(values1)),
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0.5f);
+
+        Object[] values2 = {'a'};
+        selectivity = SelectivityEstimator
+                .estimateInValOperSelectiviy(
+                        new InValuesOperator(colVal, prepareLitExprs(values2)),
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0.25f);
+
+        Object[] values3 = {'t', 'n', 'a', 'c', 'd'};
+        selectivity = SelectivityEstimator
+                .estimateInValOperSelectiviy(
+                        new InValuesOperator(colVal, prepareLitExprs(values3)),
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 1f);
+
+    }
+
+    /**
+     * Tests that selectivity is calculated correctly when the column which
+     * InValuesOperator is used on contains varchar's (with some nulls)
+     **/
+    public void testInValuesVarcharWothNull() {
+
+        float selectivity;
+
+        ColumnName colName = new ColumnName("TEST_INVAL_T3", "A");
+        ColumnValue colVal = new ColumnValue(colName);
+        TableInfo tableInfo = tableInfoMap.get(Tables.T3.toString());
+
+        Object[] values1 = {'t', 'n'};
+        selectivity = SelectivityEstimator
+                .estimateInValOperSelectiviy(
+                        new InValuesOperator(colVal, prepareLitExprs(values1)),
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0.5f);
+
+        Object[] values2 = {'a'};
+        selectivity = SelectivityEstimator
+                .estimateInValOperSelectiviy(
+                        new InValuesOperator(colVal, prepareLitExprs(values2)),
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0.25f);
+
+        Object[] values3 = {'t', 'n', 'a', 'c', 'd'};
+        selectivity = SelectivityEstimator
+                .estimateInValOperSelectiviy(
+                        new InValuesOperator(colVal, prepareLitExprs(values3)),
+                        tableInfo.getSchema(),
+                        tableInfo.getTupleFile().getStats().getAllColumnStats());
+        assert checkSelectivity(selectivity, 0.75f);
+
+    }
+
+    /**
+     * Prepares an array list of literal expressions.
+     */
     private ArrayList<Expression> prepareLitExprs(Object[] values) {
         ArrayList<Expression> literalExpressions = new ArrayList<>();
         for (Object val : values) {

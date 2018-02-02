@@ -529,3 +529,13 @@ setup_testInValuesOperator = \
   INSERT INTO test_inval_t1 VALUES (2); \
   INSERT INTO test_inval_t1 VALUES (3); \
   INSERT INTO test_inval_t1 VALUES (4); \
+  CREATE TABLE test_inval_t2 ( a VARCHAR(40)); \
+  INSERT INTO test_inval_t2 VALUES ('a'); \
+  INSERT INTO test_inval_t2 VALUES ('b'); \
+  INSERT INTO test_inval_t2 VALUES ('c'); \
+  INSERT INTO test_inval_t2 VALUES ('d'); \
+  CREATE TABLE test_inval_t3 ( a VARCHAR(40)); \
+  INSERT INTO test_inval_t3 VALUES ('a'); \
+  INSERT INTO test_inval_t3 VALUES ('b'); \
+  INSERT INTO test_inval_t3 VALUES ('c'); \
+  INSERT INTO test_inval_t3 VALUES (null); \
