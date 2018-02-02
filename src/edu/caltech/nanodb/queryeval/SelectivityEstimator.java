@@ -181,7 +181,9 @@ public class SelectivityEstimator {
             relevantVals += literalValues.stream().distinct().count();
         }
 
-        selectivity = relevantVals / (float) totalValsInCol;
+        selectivity =
+                Math.min(relevantVals, colStats.getNumUniqueValues()) /
+                        (float) totalValsInCol;
 
         return selectivity;
     }
