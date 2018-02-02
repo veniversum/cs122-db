@@ -12,7 +12,15 @@ import java.util.HashMap;
 @Test(enabled=false)
 public abstract class CostingTestCase extends SqlTestCase {
 
+    /**
+     * List of tables involved in the current test.
+     */
     private String[] tables;
+
+    /**
+     * HashMap holding the table info for each registered table. Used in the
+     * test methods in a child class.
+     */
     protected HashMap<String, TableInfo> tableInfoMap;
 
     public CostingTestCase(String sqlPropName, String[] tables) {
@@ -38,6 +46,10 @@ public abstract class CostingTestCase extends SqlTestCase {
         }
     }
 
+    /**
+     * Check the actual selectivity against expected selectivity using the
+     * specified threshold.
+     */
     protected boolean checkSelectivity(float actual, float expected) {
         float THRESHOLD = 0.005f;
         float difference = Math.abs(actual - expected);

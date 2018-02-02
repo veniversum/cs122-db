@@ -121,7 +121,10 @@ public class SelectivityEstimator {
     }
 
     /**
-     * TODO: Complete this doc
+     * Estimates selectivity for the `column IN (values)` operator. Where
+     * possible, the count of distinct literal values is used to estimate
+     * selectivity. For non-literal values, we assume that each such value is
+     * unique.
      *
      * @param inVal the IN (values) expression
      *
