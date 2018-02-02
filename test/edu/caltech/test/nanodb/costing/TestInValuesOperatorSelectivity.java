@@ -14,7 +14,7 @@ import java.util.Arrays;
  * {@link edu.caltech.nanodb.queryeval.SelectivityEstimator} class.
  */
 @Test
-public class TestInValuesOperatorCosting extends CostingTestCase {
+public class TestInValuesOperatorSelectivity extends CostingTestCase {
 
     private static final String[] tableNames = new String[]{
             "test_inval_t1",
@@ -22,7 +22,7 @@ public class TestInValuesOperatorCosting extends CostingTestCase {
             "test_inval_t3"
     };
 
-    public TestInValuesOperatorCosting() {
+    public TestInValuesOperatorSelectivity() {
         super("setup_testInValuesOperator", tableNames);
     }
 
