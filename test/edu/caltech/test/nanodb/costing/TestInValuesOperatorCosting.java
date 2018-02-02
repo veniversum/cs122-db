@@ -21,21 +21,6 @@ public class TestInValuesOperatorCosting extends CostingTestCase {
             "test_inval_t2",
             "test_inval_t3"
     };
-    private enum Tables {
-        T1("test_inval_t1"),
-        T2("test_inval_t2"),
-        T3("test_inval_t3");
-
-        private final String tableName;
-
-        Tables(String rep) {
-            tableName = rep;
-        }
-
-        public String toString() {
-            return tableName;
-        }
-    }
 
     public TestInValuesOperatorCosting() {
         super("setup_testInValuesOperator", tableNames);
@@ -55,7 +40,7 @@ public class TestInValuesOperatorCosting extends CostingTestCase {
 
         ColumnName colName = new ColumnName("TEST_INVAL_T1", "A");
         ColumnValue colVal = new ColumnValue(colName);
-        TableInfo tableInfo = tableInfoMap.get(Tables.T1.toString());
+        TableInfo tableInfo = tableInfoMap.get(tableNames[0]);
 
         Object[] values1 = {1, 5};
         selectivity = SelectivityEstimator
@@ -93,7 +78,7 @@ public class TestInValuesOperatorCosting extends CostingTestCase {
 
         ColumnName colName = new ColumnName("TEST_INVAL_T2", "A");
         ColumnValue colVal = new ColumnValue(colName);
-        TableInfo tableInfo = tableInfoMap.get(Tables.T2.toString());
+        TableInfo tableInfo = tableInfoMap.get(tableNames[1]);
 
         Object[] values1 = {'t', 'n'};
         selectivity = SelectivityEstimator
@@ -131,7 +116,7 @@ public class TestInValuesOperatorCosting extends CostingTestCase {
 
         ColumnName colName = new ColumnName("TEST_INVAL_T3", "A");
         ColumnValue colVal = new ColumnValue(colName);
-        TableInfo tableInfo = tableInfoMap.get(Tables.T3.toString());
+        TableInfo tableInfo = tableInfoMap.get(tableNames[2]);
 
         Object[] values1 = {'t', 'n'};
         selectivity = SelectivityEstimator
