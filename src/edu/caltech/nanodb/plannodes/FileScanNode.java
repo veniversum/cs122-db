@@ -228,7 +228,7 @@ public class FileScanNode extends SelectNode {
         cost = new PlanCost(numTupleSelected,
                 tableStats.avgTupleSize,
                 tableStats.numTuples,
-                1);
+                tableStats.numDataPages);
 
         // NOTE:  Normally we would also update the table statistics based on
         //        the predicate, but that's too complicated, so we'll leave
