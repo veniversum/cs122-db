@@ -519,3 +519,13 @@ setup_testLimitOffset = \
     INSERT INTO test_lo_t1 VALUES (5); \
     INSERT INTO test_lo_t1 VALUES (6); \
     INSERT INTO test_lo_t1 VALUES (7); \
+
+#============================================================================
+# Data for tests exercising LIMIT and OFFSET clauses
+
+setup_testInValuesOperator = \
+  CREATE TABLE test_inval_t1 ( a INTEGER); \
+  INSERT INTO test_inval_t1 VALUES (1); \
+  INSERT INTO test_inval_t1 VALUES (2); \
+  INSERT INTO test_inval_t1 VALUES (3); \
+  INSERT INTO test_inval_t1 VALUES (4); \
