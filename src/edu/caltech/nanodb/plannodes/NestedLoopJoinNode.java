@@ -176,8 +176,8 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             // TODO support tuple size for joins which return less columns than the sum of the 2 tables.
             cost = new PlanCost(0,
                     leftChildCost.tupleSize + rightChildCost.tupleSize,
-                    leftChildCost.cpuCost + rightChildCost.cpuCost,
-                    leftChildCost.numBlockIOs + leftChildCost.numBlockIOs * rightChildCost.numBlockIOs);
+                    leftChildCost.cpuCost + leftChildCost.numTuples * rightChildCost.cpuCost,
+                    (long) (leftChildCost.numBlockIOs + leftChildCost.numTuples * rightChildCost.numBlockIOs));
 
             // Comparison of tuples requires CPU time.
             cost.cpuCost += crossProductSize;
