@@ -3,12 +3,12 @@ package edu.caltech.nanodb.queryeval;
 
 import edu.caltech.nanodb.expressions.*;
 import edu.caltech.nanodb.relations.ColumnInfo;
+import edu.caltech.nanodb.relations.ColumnType;
 import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Schema;
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 import java.util.stream.IntStream;
 
 
@@ -102,6 +102,11 @@ public class SelectivityEstimator {
 
         if (expr == null) return 1;
 
+        if (expr instanceof InValuesOperator) {
+            InValuesOperator inVal = (InValuesOperator) expr;
+            selectivity = estimateInValOperSelectiviy(inVal, exprSchema, stats);
+        }
+
         if (expr instanceof BooleanOperator) {
             // A Boolean AND, OR, or NOT operation.
             BooleanOperator bool = (BooleanOperator) expr;
@@ -116,6 +121,53 @@ public class SelectivityEstimator {
         return selectivity;
     }
 
+    /**
+     * TODO: Complete this doc
+     *
+     * @param inVal the IN (values) expression
+     *
+     * @param exprSchema a schema specifying the environment that the expression
+     *        will be evaluated within
+     *
+     * @param stats a collection of column-statistics to use in making
+     *        selectivity estimates
+     *
+     * @return a selectivity estimate in the range [0, 1].
+     */
+    public static float estimateInValOperSelectiviy(InValuesOperator inVal,
+        Schema exprSchema, ArrayList<ColumnStats> stats) {
+
+        Object[] values = Arrays.stream(inVal.getValues().toArray())
+                .map(e -> {
+                    ((Expression) e).evaluate();
+                    return ((Expression) e).evaluate();
+                })
+                .toArray();
+
+        ColumnInfo colInfo = inVal.getColumnInfo(exprSchema);
+        int colIndex = exprSchema.getColumnIndex(colInfo.getColumnName());
+        ColumnStats colStats = stats.get(colIndex);
+
+        long relevantVals = 0;
+        long totalValsInCol = colStats.getNumUniqueValues();
+        if(Arrays.stream(values).anyMatch(Objects::isNull))
+            totalValsInCol++;
+
+        if (colStats.hasDifferentMinMaxValues()) {
+            Comparable max = (Comparable) colStats.getMaxValue();
+            Comparable min = (Comparable) colStats.getMinValue();
+            relevantVals = Arrays.stream(values)
+                    .distinct()
+                    .filter(value -> max.compareTo(value) > -1 && min.compareTo(value) < 1)
+                    .count();
+        } else {
+            relevantVals = Arrays.stream(values)
+                .distinct()
+                .count();
+        }
+
+        return relevantVals / (float) totalValsInCol;
+    }
 
     /**
      * This function computes a selectivity estimate for a general Boolean
@@ -383,6 +435,7 @@ public class SelectivityEstimator {
                     break;
             }
         }
+
         // TODO:  Compute the selectivity.  Note that the ColumnStats type
         //        will return special values to indicate "unknown" stats;
         //        your code should detect when this is the case, and fall
