@@ -149,6 +149,7 @@ public class SelectivityEstimator {
 
         long relevantVals = 0;
         long totalValsInCol = colStats.getNumUniqueValues();
+        if (colStats.getNumNullValues() > 0) totalValsInCol += 1;
         boolean containsNull = false;
 
         List<Object> literalValues = new ArrayList<>();
