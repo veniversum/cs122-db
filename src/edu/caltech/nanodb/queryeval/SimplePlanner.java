@@ -74,6 +74,18 @@ public class SimplePlanner extends AbstractPlannerImpl {
         }
 
         /*
+        Process subqueries in WHERE clause first.
+         */
+        if (selClause.getWhereExpr() != null) {
+            selClause.getWhereExpr().traverse(subProcessor);
+            for (SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
+                // TODO: Replace null with something else
+                subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
+            }
+            subProcessor.resetSubqueryExpressions();
+        }
+
+        /*
         Process the from clause, by construction of join nodes,
         subqueries, renaming table, etc. See deconstructFrom().
          */
@@ -91,12 +103,6 @@ public class SimplePlanner extends AbstractPlannerImpl {
         if (selClause.getWhereExpr() != null) {
             assert fromClause != null;
             if (!fromClause.isBaseTable()) {
-                selClause.getWhereExpr().traverse(subProcessor);
-                for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
-                    // TODO: Replace null with something else
-                    subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
-                }
-                subProcessor.resetSubqueryExpressions();
                 node = new SimpleFilterNode(node, selClause.getWhereExpr());
             }
         }
