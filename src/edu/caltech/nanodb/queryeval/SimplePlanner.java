@@ -6,12 +6,13 @@ import edu.caltech.nanodb.plannodes.*;
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
 import edu.caltech.nanodb.queryast.SelectValue;
+import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.TableInfo;
+import javafx.util.Pair;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 
 /**
@@ -168,13 +169,93 @@ public class SimplePlanner extends AbstractPlannerImpl {
         } else if (fromClause.isDerivedTable()) {
             node = makePlan(fromClause.getSelectClause(), Collections.emptyList());
         } else if (fromClause.isJoinExpr()) {
-            node = new NestedLoopJoinNode(deconstructFrom(fromClause.getLeftChild())
-                    , deconstructFrom(fromClause.getRightChild())
-                    , fromClause.getJoinType()
-                    , fromClause.getOnExpression());
+            PlanNode leftNode = deconstructFrom(fromClause.getLeftChild());
+            PlanNode rightNode = deconstructFrom(fromClause.getRightChild());
+            FromClause.JoinConditionType joinCondType = fromClause
+                    .getConditionType();
+            if (joinCondType == FromClause.JoinConditionType.NATURAL_JOIN
+                    || joinCondType == FromClause.JoinConditionType.JOIN_USING) {
+                leftNode.prepare();
+                rightNode.prepare();
+
+                // Figure out which columns we need to use
+                Collection<String> columnsToUse;
+                if(joinCondType == FromClause.JoinConditionType.NATURAL_JOIN)
+                    columnsToUse = leftNode.getSchema()
+                            .getCommonColumnNames(rightNode.getSchema());
+                else columnsToUse = fromClause.getUsingNames();
+
+                Pair<List<SelectValue>, BooleanOperator> data =
+                        generateNaturalJoinData(
+                                leftNode.getSchema(),
+                                rightNode.getSchema(),
+                                columnsToUse);
+                if (data != null) {
+                    node = new NestedLoopJoinNode(leftNode
+                            , rightNode
+                            , fromClause.getJoinType()
+                            , data.getValue());
+                    node = new ProjectNode(node, data.getKey());
+                }
+            } else {
+                node = new NestedLoopJoinNode(leftNode
+                        , rightNode
+                        , fromClause.getJoinType()
+                        , fromClause.getOnExpression());
+            }
         }
-        if (fromClause.isRenamed() && node != null) node = new RenameNode(node, fromClause.getResultName());
+        if (fromClause.isRenamed() && node != null) node
+                = new RenameNode(node, fromClause.getResultName());
         return node;
+    }
+
+    public Pair<List<SelectValue>, BooleanOperator>
+    generateNaturalJoinData(Schema schema1, Schema schema2,
+                            Collection<String> commonColumns) {
+
+        String table1 = (String) schema1.getTableNames().toArray()[0];
+        String table2 = (String) schema2.getTableNames().toArray()[0];
+
+        if (commonColumns.isEmpty()) return null;
+
+        List<Expression> terms = new ArrayList<>();
+        for (String column : commonColumns) {
+            ColumnName leftColName = new ColumnName(table1, column);
+            ColumnValue leftCol = new ColumnValue(leftColName);
+            ColumnName rightColName = new ColumnName(table2, column);
+            ColumnValue rightCol = new ColumnValue(rightColName);
+            terms.add(
+                    new CompareOperator(CompareOperator.Type.EQUALS,
+                            leftCol,
+                            rightCol)
+            );
+        }
+        BooleanOperator boolOp =
+                new BooleanOperator(BooleanOperator.Type.AND_EXPR, terms);
+
+        List<SelectValue> selectValues = new ArrayList<>();
+        for (String column : commonColumns) {
+            ColumnName colName = new ColumnName(table1, column);
+            ColumnValue colVal = new ColumnValue(colName);
+            SelectValue selValue = new SelectValue(colVal, column);
+            selectValues.add(selValue);
+        }
+        for (String column : schema1.getColumnNames()) {
+            if (commonColumns.contains(column)) continue;
+            ColumnName colName = new ColumnName(table1, column);
+            ColumnValue colVal = new ColumnValue(colName);
+            SelectValue selValue = new SelectValue(colVal, null);
+            selectValues.add(selValue);
+        }
+        for (String column : schema2.getColumnNames()) {
+            if (commonColumns.contains(column)) continue;
+            ColumnName colName = new ColumnName(table2, column);
+            ColumnValue colVal = new ColumnValue(colName);
+            SelectValue selValue = new SelectValue(colVal, null);
+            selectValues.add(selValue);
+        }
+
+        return new Pair<>(selectValues, boolOp);
     }
 
     /**
