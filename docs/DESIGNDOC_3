@@ -59,36 +59,52 @@ C:  Plan Costing Implementation
 C1.  Briefly describe how you estimate the number of tuples and the cost
      of a file-scan plan node.  What factors does your cost include?
 
-     We get the the number of tuples _scanned_ from tableStats.numTuples.
-     That is the cpu cost of the plan node. The number of tuples is
-     the number of tuples in the table multiplied by the selectivity
-     of the predicate.
+     numTuples: selectivity * number of tuples in table stats.
+                SelectivityEstimator is modified to work with
+                null predicates.
 
-     Cost of predicate is not included in cpu cost.
+     tupleSize: get directly from table stats
 
-     SelectivityEstimator is modified to work with null predicates.
+     cpuCost: same as number of tuples in table
+
+     numBlockIOs: get number of data pages from table stats
+
+     Cost of predicate is not included in cpu cost (for all plan nodes really).
+
 
 C2.  Same question as for C1, but for simple filter nodes.
 
-     CPU cost is CPU cost of child node plus the number of tuples
-     in the child node.
-     Number of tuples is number of tuples in child node multiplied
-     by selectivity of predicate.
+     numTuples: selectivity of predicate * number of tuples in child table.
+                Selectivity is calculated using child schema and column stats.
 
-     Selectivity is calculated using child schema and column stats.
+     tupleSize: same as child table
+
+     cpuCost: number of tuples in child table + CPU cost of child table
+
+     numBlockIOs: same as child table.
+
 
 C3.  Same question as for C1, but for nested-loop joins.
 
-     Let N and M be the number of tuples in the child nodes.
+     Let N be number of tuples in left child node (outer loop)
+     and M be the number of tuples in right child nodes (inner loop).
 
-     CPU cost is sum of CPU costs of children, plus O(MN).
+     numTuples: selectivity of predicate * N*M. If OUTER join, add
+                (1 - selectivity) * number of tuples in outer table.
 
-     Number of tuples is M * N * selectivity. For LEFT OUTER joins,
-     add  (1 - selectivity) * num tuples in left child to the total number
-     of tuples. Note that RIGHT OUTER joins are converted to LEFT OUTER
-     before this step. CROSS joins have selectivity of 1.
+                Selectivity is calculated using both children schema and column stats.
+                Cross joins have selectivity of 1.
 
-     Selectivity is calculated using both children schema and column stats.
+     tupleSize: sum of tuple size in child tables. We do not yet support
+                joins that return less columns yet (like natural joins).
+                We also do not handle edge cases like LEFT OUTER joins
+                with only null values for the right table's columns.
+
+     cpuCost: cpuCost of left child table + N * CPU cost of right child table.
+              Additional CPU cost for each tuple produced in joins, since joined
+              tuples cost more than skipped tuples.
+
+     numBlockIOs: numBlockIOs of left child table + N * numBlockIOs of right child table.
 
 
 D:  Costing SQL Queries
@@ -139,9 +155,9 @@ D2.  What is the estimated number of tuples that will be produced by each
 
      How many tuples does each query produce?
 
-        1st query: 226 estiamed, 9 actual.
+        1st query: 226 estimated, 9 actual.
         2nd query: 99 estimated, 1 actual.
-        3rd query: 5 estimaed, 1 actual.
+        3rd query: 5 estimated, 1 actual.
 
 
      Briefly explain the difference between the estimated number of tuples
@@ -271,12 +287,8 @@ If you implemented any extra-credit tasks for this assignment, describe
 them here.  The description should be like this, with stuff in "<>" replaced.
 (The value i starts at 1 and increments...)
 
-E<i>:  <one-line description>
-
-     <brief summary of what you did, including the specific classes that
-     we should look at for your implementation>
-
-     <brief summary of test-cases that demonstrate/exercise your extra work>
+E<0>: I think first part of extra credit COLUMN op VALUE statistics was already
+      supported? Or the design accidentally supported it.
 
 E<1>:  Selectivity for `col IN (values)`
 
@@ -301,6 +313,19 @@ E<2>:  More accurate selectiv. for `col == val1 OR col == val2 OR ...`
         - Tests same things as the InValuesOperator selectivity test file, but
           uses a BooleanOperator to trigger the calculation
 
+E<3>:  Tests for table analysis
+
+     `TestTableAnalysis` test file:
+        - Tests that table analysis was performed correctly.
+
+E<4>: Tests for ORDER BY clause, to check order.
+
+    `TestGroupingAndAggregation#testWithOtherCommands`
+        - Perform check correctly without ignoring order
+
+E<5>: Fix bug in TupleComparator / tests with floating points
+
+    See https://piazza.com/class/jc8a2ohck6y5px?cid=35.
 
 F:  Feedback [OPTIONAL]
 -----------------------
