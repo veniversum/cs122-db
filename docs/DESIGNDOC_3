@@ -283,9 +283,23 @@ E<1>:  Selectivity for `col IN (values)`
      Extended SelectivityEstimator.estimateSelectivity() to calculate the
      selectivity of the InValuesOperator.
 
-     `TestInValuesOperatorCosting` test file:
-        Checks that selectivity is calculated correctly on tables with uniform
-        distribution of values.
+     `TestInValuesOperatorSelectivity` test file:
+        - Checks that selectivity is calculated correctly on tables with uniform
+          distribution of values.
+        - Checks that selectivity is calculated correctly on varchar column with
+          no null values.
+        - Checks that selectivity is calculated correctly on varchar column with
+          null values.
+
+E<2>:  More accurate selectiv. for `col == val1 OR col == val2 OR ...`
+
+     Extended SelectivityEstimator.estimateSelectivity() to recognise when when
+     OR boolean operator consists of terms that check if the same column is
+     equal to some values. If so, treat them as InValuesOperator.
+
+     `TestOrBooleanSameColSelectivity` test file:
+        - Tests same things as the InValuesOperator selectivity test file, but
+          uses a BooleanOperator to trigger the calculation
 
 
 F:  Feedback [OPTIONAL]

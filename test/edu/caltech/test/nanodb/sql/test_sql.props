@@ -523,7 +523,7 @@ setup_testLimitOffset = \
 #============================================================================
 # Data for tests exercising LIMIT and OFFSET clauses
 
-setup_testInValuesOperator = \
+setup_testCostingOperator = \
   CREATE TABLE test_inval_t1 ( a INTEGER); \
   INSERT INTO test_inval_t1 VALUES (1); \
   INSERT INTO test_inval_t1 VALUES (2); \
@@ -539,3 +539,16 @@ setup_testInValuesOperator = \
   INSERT INTO test_inval_t3 VALUES ('b'); \
   INSERT INTO test_inval_t3 VALUES ('c'); \
   INSERT INTO test_inval_t3 VALUES (null); \
+  CREATE TABLE test_analyze_t4 (a VARCHAR(40), b INTEGER); \
+  INSERT INTO test_analyze_t4 VALUES ('a', 1); \
+  INSERT INTO test_analyze_t4 VALUES ('a', 2); \
+  INSERT INTO test_analyze_t4 VALUES ('b', 3); \
+  INSERT INTO test_analyze_t4 VALUES ('b', 4); \
+  INSERT INTO test_analyze_t4 VALUES ('b', 5); \
+  INSERT INTO test_analyze_t4 VALUES ('b', 6); \
+  INSERT INTO test_analyze_t4 VALUES ('c', 7); \
+  INSERT INTO test_analyze_t4 VALUES ('c', 8); \
+  INSERT INTO test_analyze_t4 VALUES ('d', 9); \
+  INSERT INTO test_analyze_t4 VALUES (null, 10); \
+  INSERT INTO test_analyze_t4 VALUES (null, 11); \
+  INSERT INTO test_analyze_t4 VALUES (null, 12); \

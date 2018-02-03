@@ -10,8 +10,8 @@ import java.util.ArrayList;
 
 /**
  * This test class exercises the functionality of
- * costing the {@link InValuesOperator} in the
- * {@link SelectivityEstimator} class.
+ * costing the {@link BooleanOperator} selectivity in cases where it can be
+ * replaced with {@link InValuesOperator}.
  */
 @Test
 public class TestOrBooleanSameColSelectivity extends CostingTestCase {
@@ -23,7 +23,7 @@ public class TestOrBooleanSameColSelectivity extends CostingTestCase {
     };
 
     public TestOrBooleanSameColSelectivity() {
-        super("setup_testInValuesOperator", tableNames);
+        super("setup_testCostingOperator", tableNames);
     }
 
     @Override
@@ -110,7 +110,7 @@ public class TestOrBooleanSameColSelectivity extends CostingTestCase {
      * Tests that selectivity is calculated correctly when the column which
      * InValuesOperator is used on contains varchar's (with some nulls)
      **/
-    public void testOrSameColumnVarcharWothNull() {
+    public void testOrSameColumnVarcharWithNull() {
 
         float selectivity;
 

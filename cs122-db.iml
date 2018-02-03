@@ -26,5 +26,6 @@
     <orderEntry type="library" name="log4j-1.2.13" level="project" />
     <orderEntry type="library" name="antlr-3.2" level="project" />
     <orderEntry type="library" name="commons-io-2.1" level="project" />
+    <orderEntry type="library" name="commons-lang-2.4" level="project" />
   </component>
 </module>

@@ -23,7 +23,7 @@ public class TestInValuesOperatorSelectivity extends CostingTestCase {
     };
 
     public TestInValuesOperatorSelectivity() {
-        super("setup_testInValuesOperator", tableNames);
+        super("setup_testCostingOperator", tableNames);
     }
 
     @Override
@@ -110,7 +110,7 @@ public class TestInValuesOperatorSelectivity extends CostingTestCase {
      * Tests that selectivity is calculated correctly when the column which
      * InValuesOperator is used on contains varchar's (with some nulls)
      **/
-    public void testInValuesVarcharWothNull() {
+    public void testInValuesVarcharWithNull() {
 
         float selectivity;
 
