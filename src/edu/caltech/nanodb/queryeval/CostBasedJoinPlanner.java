@@ -141,7 +141,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
             havingExpr = havingExpr.traverse(processor);
 
         /*
-        Todo remove after implementing enclosing selects
         Not needed for now since from clause doesn't support correlated subqueries.
          */
         if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
@@ -249,28 +248,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
          */
         node.prepare();
         return node;
-
-        // TODO:  Implement!
-        //
-        // This is a very rough sketch of how this function will work,
-        // focusing mainly on join planning:
-        //
-        // 1)  Pull out the top-level conjuncts from the WHERE and HAVING
-        //     clauses on the query, since we will handle them in special ways
-        //     if we have outer joins.
-        //
-        // 2)  Create an optimal join plan from the top-level from-clause and
-        //     the top-level conjuncts.
-        //
-        // 3)  If there are any unused conjuncts, determine how to handle them.
-        //
-        // 4)  Create a project plan-node if necessary.
-        //
-        // 5)  Handle other clauses such as ORDER BY, LIMIT/OFFSET, etc.
-        //
-        // Supporting other query features, such as grouping/aggregation,
-        // various kinds of subqueries, queries without a FROM clause, etc.,
-        // can all be incorporated into this sketch relatively easily.
     }
 
     /**
@@ -375,8 +352,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         FromClause rightFromClause = fromClause.getRightChild();
         collectDetails(leftFromClause, conjuncts, leafFromClauses);
         collectDetails(rightFromClause, conjuncts, leafFromClauses);
-
-        // TODO: Check if this implementation is correct.
     }
 
 
@@ -451,13 +426,10 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         throws IOException {
 
         // Create a copy of the leftover conjuncts
-        // TODO: Check if need to do set subtraction? Probably not
         HashSet<Expression> conjunctsCopy = new HashSet<>(conjuncts);
-        conjunctsCopy.removeAll(leafConjuncts);
 
         PlanNode node;
         if (fromClause.isDerivedTable()) {
-            // TODO: Check for used exprs? Unlikely
             node = makePlan(fromClause.getSelectClause(),
                     Collections.emptyList());
         } else if (fromClause.isJoinExpr()) {
@@ -516,16 +488,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
 
         if (needToPrepare) node.prepare();
         return node;
-
-        // TODO:  Check the implementation of this module..
-        //        If you apply any conjuncts then make sure to add them to the
-        //        leafConjuncts collection.
-        //
-        //        Don't forget that all from-clauses can specify an alias.
-        //
-        //        Concentrate on properly handling cases other than outer
-        //        joins first, then focus on outer joins once you have the
-        //        typical cases supported.
     }
 
 
@@ -549,18 +511,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
      */
     private JoinComponent generateOptimalJoin(
         ArrayList<JoinComponent> leafComponents, Set<Expression> conjuncts) {
-
-        // This object maps a collection of leaf-plans (represented as a
-        // hash-set) to the optimal join-plan for that collection of leaf plans.
-        //
-        // This collection starts out only containing the leaf plans themselves,
-        // and on each iteration of the loop below, join-plans are grown by one
-        // leaf.  For example:
-        //   * In the first iteration, all plans joining 2 leaves are created.
-        //   * In the second iteration, all plans joining 3 leaves are created.
-        //   * etc.
-        // At the end, the collection will contain ONE entry, which is the
-        // optimal way to join all N leaves.  Go Go Gadget Dynamic Programming!
         HashMap<HashSet<PlanNode>, JoinComponent> joinPlans = new HashMap<>();
 
         // Initially populate joinPlans with just the N leaf plans.
