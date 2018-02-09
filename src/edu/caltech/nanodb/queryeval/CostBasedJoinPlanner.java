@@ -467,16 +467,20 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
 
             FromClause leftFrom = fromClause.getLeftChild();
             FromClause rightFrom = fromClause.getRightChild();
-            PlanNode leftChild =
-                    makeJoinPlan(leftFrom, Collections.emptyList())
-                            .joinPlan;
-            PlanNode rightChild =
-                    makeJoinPlan(rightFrom, Collections.emptyList())
-                            .joinPlan;
-            // TODO: Check if we can pass something down to outer joins.
-//            if (fromClause.hasOuterJoinOnLeft()) {
-//                leftChild = makeLeafPlan()
-//            }
+            HashSet<Expression> leftConjs = new HashSet<>();
+            HashSet<Expression> rightConjsT = new HashSet<>();
+            if (!fromClause.hasOuterJoinOnRight()) {
+                PredicateUtils.findExprsUsingSchemas(conjunctsCopy, true,
+                        leftConjs, leftFrom.getSchema());
+            }
+            if (!fromClause.hasOuterJoinOnLeft()) {
+                PredicateUtils.findExprsUsingSchemas(conjunctsCopy, true,
+                        rightConjsT, leftFrom.getSchema());
+            }
+
+            PlanNode leftChild = makeJoinPlan(leftFrom, leftConjs).joinPlan;
+            PlanNode rightChild = makeJoinPlan(rightFrom, rightConjsT).joinPlan;
+
             node = new NestedLoopJoinNode(
                     leftChild,
                     rightChild,
