@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import edu.caltech.nanodb.commands.ExecutionException;
 import edu.caltech.nanodb.expressions.*;
 import edu.caltech.nanodb.plannodes.*;
 import edu.caltech.nanodb.queryast.SelectValue;
@@ -323,6 +324,14 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         JoinComponent optimalJoin =
             generateOptimalJoin(leafComponents, roConjuncts);
 
+        // Check that we've applied all possible conjuncts - otherwise the
+        // user has specified some bogus conjuncts.
+        HashSet<Expression> leftOverConjs = new HashSet<>(roConjuncts);
+        leftOverConjs.removeAll(optimalJoin.conjunctsUsed);
+        if (!leftOverConjs.isEmpty())
+            throw new ExpressionException("Some conjuncts weren't recognised: " +
+                    leftOverConjs);
+
         PlanNode plan = optimalJoin.joinPlan;
         logger.info("Optimal join plan generated:\n" +
             PlanNode.printNodeTreeToString(plan, true));
@@ -626,7 +635,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
      * @param newCost Cost of the new plan
      * @return true if new cost is better, false otherwise
      */
-    public boolean comparePlanCosts(PlanCost oldCost, PlanCost newCost) {
+    private boolean comparePlanCosts(PlanCost oldCost, PlanCost newCost) {
         // TODO: Add a more elaborate check
         return oldCost.cpuCost > newCost.cpuCost;
     }
