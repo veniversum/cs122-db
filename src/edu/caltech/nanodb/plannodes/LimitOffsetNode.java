@@ -2,6 +2,7 @@ package edu.caltech.nanodb.plannodes;
 
 import edu.caltech.nanodb.expressions.OrderByExpression;
 import edu.caltech.nanodb.queryeval.ColumnStats;
+import edu.caltech.nanodb.queryeval.PlanCost;
 import edu.caltech.nanodb.relations.Tuple;
 
 import java.io.IOException;
@@ -56,7 +57,9 @@ public class LimitOffsetNode extends PlanNode {
         ArrayList<ColumnStats> childStats = leftChild.getStats();
 
         // TODO:  Compute the cost of the plan node!
-        cost = null;
+        cost = new PlanCost(leftChild.cost);
+
+        cost.cpuCost += (offset + limit) * PlanCost.cpu_tuple_cost;
 
         stats = childStats;
     }
