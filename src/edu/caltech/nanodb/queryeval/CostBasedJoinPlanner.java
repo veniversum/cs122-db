@@ -1,26 +1,18 @@
 package edu.caltech.nanodb.queryeval;
 
 
-import java.io.IOException;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import edu.caltech.nanodb.commands.ExecutionException;
 import edu.caltech.nanodb.expressions.*;
 import edu.caltech.nanodb.plannodes.*;
-import edu.caltech.nanodb.queryast.SelectValue;
-import edu.caltech.nanodb.relations.JoinType;
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
+import edu.caltech.nanodb.queryast.SelectValue;
+import edu.caltech.nanodb.relations.JoinType;
 import edu.caltech.nanodb.relations.TableInfo;
+import org.apache.log4j.Logger;
+
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
@@ -190,6 +182,18 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
                 }
                 JoinComponent joinPlan = makeJoinPlan(fromClause, expressions);
                 node = joinPlan.joinPlan;
+
+                /*
+                Restore ordering of columns for SELECT * after join reordering if necessary.
+                 */
+                if (selClause.isTrivialProject() &&
+                        !node.getSchema().getColumnInfos().equals(selClause.getSchema().getColumnInfos())) {
+                    node = new ProjectNode(node,
+                            selClause.getSchema().getColumnInfos()
+                                    .stream()
+                                    .map(i -> new SelectValue(new ColumnValue(i.getColumnName()), null))
+                                    .collect(Collectors.toList()));
+                }
             }
             if (fromClause.isRenamed())
                 node = new RenameNode(node, fromClause.getResultName());
