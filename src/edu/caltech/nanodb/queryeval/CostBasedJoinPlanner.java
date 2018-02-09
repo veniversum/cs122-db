@@ -290,7 +290,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
 
         logger.debug("Generating plans for all leaves");
         ArrayList<JoinComponent> leafComponents = generateLeafJoinComponents(
-            leafFromClauses, roConjuncts);
+            leafFromClauses, conjuncts);
 
         // Print out the results, for debugging purposes.
         if (logger.isDebugEnabled()) {
@@ -303,11 +303,11 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         // Build up the full query-plan using a dynamic programming approach.
 
         JoinComponent optimalJoin =
-            generateOptimalJoin(leafComponents, roConjuncts);
+            generateOptimalJoin(leafComponents, conjuncts);
 
         // Check that we've applied all possible conjuncts - otherwise the
         // user has specified some bogus conjuncts.
-        HashSet<Expression> leftOverConjs = new HashSet<>(roConjuncts);
+        HashSet<Expression> leftOverConjs = new HashSet<>(conjuncts);
         leftOverConjs.removeAll(optimalJoin.conjunctsUsed);
         if (!leftOverConjs.isEmpty())
             throw new ExpressionException("Some conjuncts weren't recognised: " +
@@ -426,7 +426,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         throws IOException {
 
         // Create a copy of the leftover conjuncts
-        HashSet<Expression> conjunctsCopy = new HashSet<>(conjuncts);
+//        HashSet<Expression> conjunctsCopy = new HashSet<>(conjuncts);
 
         PlanNode node;
         if (fromClause.isDerivedTable()) {
@@ -442,11 +442,11 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
             HashSet<Expression> leftConjs = new HashSet<>();
             HashSet<Expression> rightConjsT = new HashSet<>();
             if (!fromClause.hasOuterJoinOnRight()) {
-                PredicateUtils.findExprsUsingSchemas(conjunctsCopy, true,
+                PredicateUtils.findExprsUsingSchemas(conjuncts, true,
                         leftConjs, leftFrom.getSchema());
             }
             if (!fromClause.hasOuterJoinOnLeft()) {
-                PredicateUtils.findExprsUsingSchemas(conjunctsCopy, true,
+                PredicateUtils.findExprsUsingSchemas(conjuncts, true,
                         rightConjsT, leftFrom.getSchema());
             }
 
@@ -470,7 +470,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         boolean needToPrepare = false;
 
         HashSet<Expression> applicableConjuncts = new HashSet<>();
-        PredicateUtils.findExprsUsingSchemas(conjunctsCopy, false,
+        PredicateUtils.findExprsUsingSchemas(conjuncts, true,
                 applicableConjuncts, node.getSchema());
         if (!applicableConjuncts.isEmpty()) {
             leafConjuncts.addAll(applicableConjuncts);
