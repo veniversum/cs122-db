@@ -135,6 +135,7 @@ public class ProjectNode extends PlanNode {
 
 
     public void prepare() {
+        super.prepare();
         if (leftChild != null) {
             // Need to prepare the left child-node before we can do our own
             // work.

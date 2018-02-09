@@ -216,6 +216,7 @@ public class FileScanNode extends SelectNode {
 
     // Inherit javadocs from base class.
     public void prepare() {
+        super.prepare();
         // Grab the schema and statistics from the table file.
 
         schema = tupleFile.getSchema();

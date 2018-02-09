@@ -106,6 +106,8 @@ public abstract class PlanNode implements Cloneable {
      */
     protected Environment environment = new Environment();
 
+    private boolean hasBeenPrepared;
+
 
     /**
      * Constructs a PlanNode with a given operation type.  This method will be
@@ -219,7 +221,10 @@ public abstract class PlanNode implements Cloneable {
      * cost of evaluating the plan node (and its children), and statistics
      * describing the results produced by the plan node.
      */
-    public abstract void prepare();
+    public void prepare() {
+        if (hasBeenPrepared) return;
+        hasBeenPrepared = true;
+    }
 
 
     /**

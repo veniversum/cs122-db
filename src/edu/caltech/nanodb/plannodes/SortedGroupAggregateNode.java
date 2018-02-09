@@ -201,6 +201,7 @@ public class SortedGroupAggregateNode extends GroupAggregateNode {
 
 
     public void prepare() {
+        super.prepare();
         // Need to prepare the left child-node before we can do our own work.
         leftChild.prepare();
 

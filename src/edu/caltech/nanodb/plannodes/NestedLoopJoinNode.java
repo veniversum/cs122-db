@@ -149,6 +149,7 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
 
     @Override
     public void prepare() {
+        super.prepare();
         // Simple trick to use left outer join technique for right outer joins,
         // by just switching the left and right subplans.
         if (joinType == JoinType.RIGHT_OUTER) {

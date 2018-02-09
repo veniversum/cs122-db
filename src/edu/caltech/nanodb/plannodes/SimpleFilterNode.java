@@ -111,6 +111,7 @@ public class SimpleFilterNode extends SelectNode {
 
     // Inherit javadocs from base class.
     public void prepare() {
+        super.prepare();
         // Need to prepare the left child-node before we can do our own work.
         leftChild.prepare();
 

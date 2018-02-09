@@ -103,6 +103,7 @@ public class SortNode extends PlanNode {
      * this method simply caches the subplan's schema object.
      */
     public void prepare() {
+        super.prepare();
         // Need to prepare the left child-node before we can do our own work.
         leftChild.prepare();
 
