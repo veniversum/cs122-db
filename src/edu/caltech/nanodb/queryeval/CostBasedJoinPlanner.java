@@ -186,23 +186,21 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
                             .getColumnInfos()
                             .forEach(c -> reverseTableNameMap.put(c.getName(), c.getTableName()));
                     PredicateUtils.collectConjuncts(enclosingSelects.get(0).getWhereExpr(), parentExpressions);
-//                    if (enclosingSelects.get(0).getWhereExpr() != null) {
-//                        whereExpr.traverse(new SubqueryConjunctsExpressionProcessor(reverseTableNameMap, tableName));
-//                    }
                     ExpressionProcessor scProcessor = new SubqueryConjunctsExpressionProcessor(reverseTableNameMap, tableName);
-                    for (Expression e : parentExpressions) {
+                    final Iterator<Expression> iter = parentExpressions.iterator();
+
+                    while (iter.hasNext()) {
+                        Expression e = iter.next();
                         Expression processed = e.duplicate().traverse(scProcessor);
                         if (!e.equals(processed)) {
                             expressions.add(processed);
-                            parentExpressions.remove(e);
+                            iter.remove();
                         }
                     }
-                    enclosingSelects.get(0).setWhereExpr(PredicateUtils.makePredicate(parentExpressions));
 
-//                    parentExpressions.forEach(e -> expressions.add(e.duplicate().traverse(()));
+                    enclosingSelects.get(0).setWhereExpr(PredicateUtils.makePredicate(parentExpressions));
                 }
 
-//                selClause.getFromClause().isRenamed()
                 if (selClause.getWhereExpr() != null) {
                     PredicateUtils.collectConjuncts(selClause.getWhereExpr(), expressions);
                     selClause.setWhereExpr(null);
@@ -308,10 +306,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
 
         if (extraConjuncts != null)
             conjuncts.addAll(extraConjuncts);
-
-        // Make a read-only set of the input conjuncts, to avoid bugs due to
-        // unintended side-effects.
-        Set<Expression> roConjuncts = Collections.unmodifiableSet(conjuncts);
 
         // Create a subplan for every single leaf FROM-clause, and prepare the
         // leaf-plan.
@@ -481,9 +475,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
     private PlanNode makeLeafPlan(FromClause fromClause,
         Collection<Expression> conjuncts, HashSet<Expression> leafConjuncts)
         throws IOException {
-
-        // Create a copy of the leftover conjuncts
-//        HashSet<Expression> conjunctsCopy = new HashSet<>(conjuncts);
+        
 
         PlanNode node;
         Schema schema;
