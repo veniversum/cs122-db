@@ -190,9 +190,9 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
                 }
                 JoinComponent joinPlan = makeJoinPlan(fromClause, expressions);
                 node = joinPlan.joinPlan;
-                if (fromClause.isRenamed())
-                    node = new RenameNode(node, fromClause.getResultName());
             }
+            if (fromClause.isRenamed())
+                node = new RenameNode(node, fromClause.getResultName());
         }
 
         /*
