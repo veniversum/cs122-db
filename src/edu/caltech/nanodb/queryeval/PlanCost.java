@@ -12,6 +12,9 @@ package edu.caltech.nanodb.queryeval;
  * @see TableStats
  */
 public class PlanCost {
+    public static final double seq_page_cost = 2.0;
+    public static final double cpu_tuple_cost = 0.01;
+
     /**
      * The estimated number of tuples produced by the node.  We use a
      * floating-point value because the computations frequently involve
