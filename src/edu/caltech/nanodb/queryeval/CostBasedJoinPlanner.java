@@ -145,15 +145,14 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         Not needed for now since from clause doesn't support correlated subqueries.
          */
         if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
-            throw new UnsupportedOperationException(
-                    "Not implemented:  enclosing queries");
+//            throw new UnsupportedOperationException(
+//                    "Not implemented:  enclosing queries");
         }
 
         /*
         Process subqueries in WHERE clause first.
          */
-        Expression whereExpr = selClause.getWhereExpr();
-        if (whereExpr != null) {
+        if ( selClause.getWhereExpr() != null) {
             selClause.getWhereExpr().traverse(subProcessor);
             for (SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
                 subOp.setSubqueryPlan(makePlan(subOp.getSubquery(),
@@ -172,13 +171,41 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
             if (fromClause.isBaseTable()){
                 node = makeSimpleSelect(fromClause.getTableName(), selClause.getWhereExpr(), enclosingSelects);
             } else if (fromClause.isDerivedTable()) {
-                node = makePlan(fromClause.getSelectClause(), Collections.emptyList());
+                node = makePlan(fromClause.getSelectClause(), Collections.singletonList(selClause));
             } else {
                 // Must be a join, create optimal join plan
                 HashSet<Expression> expressions = new HashSet<>();
-                if (whereExpr != null) {
-                    PredicateUtils.collectConjuncts(whereExpr, expressions);
-                    whereExpr = null;
+                if (enclosingSelects != null && enclosingSelects.size() > 0) {
+                    HashMap<String, String> reverseTableNameMap = new HashMap<>();
+                    String tableName = enclosingSelects.get(0).getFromClause().getResultName();
+                    HashSet<Expression> parentExpressions = new HashSet<>();
+                    enclosingSelects.get(0)
+                            .getFromClause()
+                            .getSelectClause()
+                            .getSchema()
+                            .getColumnInfos()
+                            .forEach(c -> reverseTableNameMap.put(c.getName(), c.getTableName()));
+                    PredicateUtils.collectConjuncts(enclosingSelects.get(0).getWhereExpr(), parentExpressions);
+//                    if (enclosingSelects.get(0).getWhereExpr() != null) {
+//                        whereExpr.traverse(new SubqueryConjunctsExpressionProcessor(reverseTableNameMap, tableName));
+//                    }
+                    ExpressionProcessor scProcessor = new SubqueryConjunctsExpressionProcessor(reverseTableNameMap, tableName);
+                    for (Expression e : parentExpressions) {
+                        Expression processed = e.duplicate().traverse(scProcessor);
+                        if (!e.equals(processed)) {
+                            expressions.add(processed);
+                            parentExpressions.remove(e);
+                        }
+                    }
+                    enclosingSelects.get(0).setWhereExpr(PredicateUtils.makePredicate(parentExpressions));
+
+//                    parentExpressions.forEach(e -> expressions.add(e.duplicate().traverse(()));
+                }
+
+//                selClause.getFromClause().isRenamed()
+                if (selClause.getWhereExpr() != null) {
+                    PredicateUtils.collectConjuncts(selClause.getWhereExpr(), expressions);
+                    selClause.setWhereExpr(null);
                 }
                 JoinComponent joinPlan = makeJoinPlan(fromClause, expressions);
                 node = joinPlan.joinPlan;
@@ -202,7 +229,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         /*
         Filter on the where clause.
          */
-        if (whereExpr != null) {
+        if (selClause.getWhereExpr() != null) {
             assert fromClause != null;
             if (!fromClause.isBaseTable()) {
                 node = new SimpleFilterNode(node, selClause.getWhereExpr());
