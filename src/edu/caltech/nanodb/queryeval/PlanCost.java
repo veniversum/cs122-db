@@ -15,8 +15,8 @@ public class PlanCost {
     public static final float seq_page_cost = 1.0f;
     public static final float random_page_cost = 4.0f;
     public static final float cpu_tuple_cost = 0.01f;
-    public static final float cpu_index_tuple_cost = 0.01f; // Unused since we don't have indexes now
-    public static final float cpu_operator_cost = 0.01f;
+    public static final float cpu_index_tuple_cost = 0.005f; // Unused since we don't have indexes now
+    public static final float cpu_operator_cost = 0.0025f;
 
     /**
      * The estimated number of tuples produced by the node.  We use a
@@ -83,7 +83,7 @@ public class PlanCost {
 
     @Override
     public String toString() {
-        return String.format("[tuples=%.1f, tupSize=%.1f, cpuCost=%.1f, blockIOs=%d]",
-            numTuples, tupleSize, cpuCost, numBlockIOs);
+        return String.format("[tuples=%.1f, tupSize=%.1f, cpuCost=%.1f, blockIOs=%d, ioCost=%.1f]",
+            numTuples, tupleSize, cpuCost, numBlockIOs, ioCost);
     }
 }
