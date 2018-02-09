@@ -225,10 +225,14 @@ public class FileScanNode extends SelectNode {
 
         final float selectivity = SelectivityEstimator.estimateSelectivity(predicate, tableInfo.getSchema(), fileStats);
         final float numTupleSelected = selectivity * tableStats.numTuples;
+        float cpuCost = tableStats.numTuples * PlanCost.cpu_tuple_cost;
+        if (predicate != null) cpuCost *= tableStats.numTuples * PlanCost.cpu_operator_cost;
+        float ioCost = tableStats.numDataPages * PlanCost.seq_page_cost + (PlanCost.random_page_cost - PlanCost.seq_page_cost);
         cost = new PlanCost(numTupleSelected,
                 tableStats.avgTupleSize,
-                tableStats.numTuples,
-                tableStats.numDataPages);
+                cpuCost,
+                tableStats.numDataPages,
+                ioCost);
 
         // NOTE:  Normally we would also update the table statistics based on
         //        the predicate, but that's too complicated, so we'll leave

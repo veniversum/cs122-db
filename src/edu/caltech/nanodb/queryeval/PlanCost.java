@@ -12,8 +12,11 @@ package edu.caltech.nanodb.queryeval;
  * @see TableStats
  */
 public class PlanCost {
-    public static final double seq_page_cost = 2.0;
-    public static final double cpu_tuple_cost = 0.01;
+    public static final float seq_page_cost = 1.0f;
+    public static final float random_page_cost = 4.0f;
+    public static final float cpu_tuple_cost = 0.01f;
+    public static final float cpu_index_tuple_cost = 0.01f; // Unused since we don't have indexes now
+    public static final float cpu_operator_cost = 0.01f;
 
     /**
      * The estimated number of tuples produced by the node.  We use a
@@ -41,6 +44,8 @@ public class PlanCost {
      */
     public long numBlockIOs;
 
+    public float ioCost;
+
 
     /**
      * Constructs a PlanCost object from its component fields.
@@ -56,12 +61,13 @@ public class PlanCost {
      *        will be performed in evaluating the query
      */
     public PlanCost(float numTuples, float tupleSize,
-                    float cpuCost, long numBlockIOs) {
+                    float cpuCost, long numBlockIOs, float ioCost) {
 
         this.numTuples = numTuples;
         this.tupleSize = tupleSize;
         this.cpuCost = cpuCost;
         this.numBlockIOs = numBlockIOs;
+        this.ioCost = ioCost;
     }
 
 
@@ -71,7 +77,7 @@ public class PlanCost {
      * @param c the cost-object to duplicate
      */
     public PlanCost(PlanCost c) {
-        this(c.numTuples, c.tupleSize, c.cpuCost, c.numBlockIOs);
+        this(c.numTuples, c.tupleSize, c.cpuCost, c.numBlockIOs, c.ioCost);
     }
 
 

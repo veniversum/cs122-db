@@ -595,8 +595,8 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
      */
     private boolean comparePlanCosts(PlanCost oldCost, PlanCost newCost) {
         // TODO: Add a more elaborate check
-        double nOldCost = oldCost.numBlockIOs * PlanCost.seq_page_cost + oldCost.cpuCost * PlanCost.cpu_tuple_cost;
-        double nNewCost = newCost.numBlockIOs * PlanCost.seq_page_cost + newCost.cpuCost * PlanCost.cpu_tuple_cost;
+        double nOldCost = oldCost.cpuCost + oldCost.ioCost;
+        double nNewCost = newCost.cpuCost + newCost.ioCost;
         return nOldCost > nNewCost;
     }
 
