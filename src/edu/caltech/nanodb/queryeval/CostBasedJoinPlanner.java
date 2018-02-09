@@ -7,6 +7,7 @@ import edu.caltech.nanodb.queryast.FromClause;
 import edu.caltech.nanodb.queryast.SelectClause;
 import edu.caltech.nanodb.queryast.SelectValue;
 import edu.caltech.nanodb.relations.JoinType;
+import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.TableInfo;
 import org.apache.log4j.Logger;
 
@@ -458,9 +459,14 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         HashSet<Expression> conjunctsCopy = new HashSet<>(conjuncts);
 
         PlanNode node;
+        Schema schema;
         if (fromClause.isDerivedTable()) {
             node = makePlan(fromClause.getSelectClause(),
                     Collections.emptyList());
+
+            // This node is guaranteed to be prepared, so we can just fetch
+            // the schema straight away.
+            schema = node.getSchema();
         } else if (fromClause.isJoinExpr()) {
 
             // If we're here, it's an outer join.
@@ -468,19 +474,20 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
 
             FromClause leftFrom = fromClause.getLeftChild();
             FromClause rightFrom = fromClause.getRightChild();
+
             HashSet<Expression> leftConjs = new HashSet<>();
-            HashSet<Expression> rightConjsT = new HashSet<>();
+            HashSet<Expression> rightConjs = new HashSet<>();
             if (!fromClause.hasOuterJoinOnRight()) {
                 PredicateUtils.findExprsUsingSchemas(conjunctsCopy, true,
                         leftConjs, leftFrom.getSchema());
             }
             if (!fromClause.hasOuterJoinOnLeft()) {
                 PredicateUtils.findExprsUsingSchemas(conjunctsCopy, true,
-                        rightConjsT, leftFrom.getSchema());
+                        rightConjs, rightFrom.getSchema());
             }
 
             PlanNode leftChild = makeJoinPlan(leftFrom, leftConjs).joinPlan;
-            PlanNode rightChild = makeJoinPlan(rightFrom, rightConjsT).joinPlan;
+            PlanNode rightChild = makeJoinPlan(rightFrom, rightConjs).joinPlan;
 
             node = new NestedLoopJoinNode(
                     leftChild,
@@ -488,34 +495,38 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
                     fromClause.getJoinType(),
                     fromClause.getOnExpression());
 
+            // We don't really care about the order of the columns in the
+            // schema, we just want to see what columns appear in it, so we
+            // can build a temporary schema from child FromClause's
+            schema = new Schema();
+            schema.append(leftFrom.getSchema());
+            schema.append(rightFrom.getSchema());
         } else {
             // Must be a base table, load it from file scan node.
             TableInfo tableInfo = storageManager.getTableManager()
                     .openTable(fromClause.getTableName());
             node = new FileScanNode(tableInfo, null);
-        }
 
-        node.prepare();
-        boolean needToPrepare = false;
+            // In this case, we can just use the table's schema.
+            schema = tableInfo.getSchema();
+        }
 
         HashSet<Expression> applicableConjuncts = new HashSet<>();
         PredicateUtils.findExprsUsingSchemas(conjunctsCopy, false,
-                applicableConjuncts, node.getSchema());
+                applicableConjuncts, schema);
         if (!applicableConjuncts.isEmpty()) {
             leafConjuncts.addAll(applicableConjuncts);
             Expression pred = PredicateUtils.makePredicate(applicableConjuncts);
             node = PlanUtils.addPredicateToPlan(node, pred);
-            needToPrepare = true;
         }
 
         if (fromClause.isRenamed()) {
             node = new RenameNode(node, fromClause.getResultName());
-            needToPrepare = true;
         }
 
         // TODO: Try calculating applicable conjuncts after renaming too?
 
-        if (needToPrepare) node.prepare();
+        node.prepare();
         return node;
     }
 
