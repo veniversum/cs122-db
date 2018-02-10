@@ -1,18 +1,20 @@
 package edu.caltech.nanodb.plannodes;
 
 
-import java.util.*;
-import java.io.*;
-
 import edu.caltech.nanodb.expressions.*;
+import edu.caltech.nanodb.queryast.SelectValue;
 import edu.caltech.nanodb.queryeval.ColumnStats;
 import edu.caltech.nanodb.queryeval.PlanCost;
+import edu.caltech.nanodb.relations.ColumnInfo;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.Tuple;
-import edu.caltech.nanodb.relations.ColumnInfo;
-
-import edu.caltech.nanodb.queryast.SelectValue;
 import org.apache.log4j.Logger;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.SortedMap;
 
 
 /**
@@ -133,6 +135,7 @@ public class ProjectNode extends PlanNode {
 
 
     public void prepare() {
+        super.prepare();
         if (leftChild != null) {
             // Need to prepare the left child-node before we can do our own
             // work.
@@ -149,7 +152,7 @@ public class ProjectNode extends PlanNode {
             inputCost = leftChild.getCost();
             if (inputCost != null) {
                 cost = new PlanCost(inputCost);
-                cost.cpuCost += inputCost.numTuples;
+                cost.cpuCost += inputCost.numTuples * PlanCost.cpu_tuple_cost;
             }
             else {
                 logger.debug(
@@ -168,7 +171,7 @@ public class ProjectNode extends PlanNode {
             // Tuple size:  TODO
             // Estimated CPU cost:  1
             // Number of block IOs:  0
-            inputCost = new PlanCost(1, /* TODO:  tupleSize */ 100, 1, 0);
+            inputCost = new PlanCost(1, /* TODO:  tupleSize */ 100, PlanCost.cpu_tuple_cost, 0, 0);
             cost = inputCost;
         }
 
