@@ -149,6 +149,7 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
 
     @Override
     public void prepare() {
+        super.prepare();
         // Simple trick to use left outer join technique for right outer joins,
         // by just switching the left and right subplans.
         if (joinType == JoinType.RIGHT_OUTER) {
@@ -177,10 +178,13 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             cost = new PlanCost(0,
                     leftChildCost.tupleSize + rightChildCost.tupleSize,
                     leftChildCost.cpuCost + leftChildCost.numTuples * rightChildCost.cpuCost,
-                    (long) (leftChildCost.numBlockIOs + leftChildCost.numTuples * rightChildCost.numBlockIOs));
+                    (long) (leftChildCost.numBlockIOs + leftChildCost.numTuples * rightChildCost.numBlockIOs),
+                    leftChildCost.numBlockIOs * PlanCost.random_page_cost +
+                            leftChildCost.numTuples * rightChildCost.numBlockIOs * PlanCost.seq_page_cost +
+                            PlanCost.random_page_cost - PlanCost.seq_page_cost);
 
             // Comparison of tuples requires CPU time.
-            cost.cpuCost += crossProductSize;
+            cost.cpuCost += crossProductSize * PlanCost.cpu_operator_cost;
             int numTuplesCreated = 0;
             switch (joinType) {
                 case LEFT_OUTER:
@@ -194,7 +198,7 @@ public class NestedLoopJoinNode extends ThetaJoinNode {
             }
 
             // Creation of joined tuple requires CPU time.
-            cost.cpuCost += numTuplesCreated;
+            cost.cpuCost += numTuplesCreated * PlanCost.cpu_tuple_cost;
             cost.numTuples += numTuplesCreated;
         } else {
             logger.info(

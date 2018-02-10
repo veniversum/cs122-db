@@ -4,10 +4,12 @@ package edu.caltech.nanodb.expressions;
 import java.util.List;
 import java.util.SortedMap;
 
+import edu.caltech.nanodb.plannodes.GroupAggregateNode;
 import edu.caltech.nanodb.relations.ColumnInfo;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.SchemaNameException;
 import edu.caltech.nanodb.relations.Tuple;
+import org.apache.log4j.Logger;
 
 
 /**
@@ -16,6 +18,9 @@ import edu.caltech.nanodb.relations.Tuple;
  * of the column is looked up during evaluation time.
  */
 public class ColumnValue extends Expression {
+
+    /** A logging object for reporting anything interesting that happens. */
+    private static Logger logger = Logger.getLogger(ColumnValue.class);
 
     /** The name of the column. */
     private ColumnName columnName;
@@ -63,6 +68,7 @@ public class ColumnValue extends Expression {
 
 
     public ColumnInfo getColumnInfo(Schema schema) throws SchemaNameException {
+        logger.debug("Looking for " + columnName + " in schema:" + schema);
         SortedMap<Integer, ColumnInfo> found = schema.findColumns(columnName);
 
         ColumnInfo colInfo;
