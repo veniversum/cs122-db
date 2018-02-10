@@ -1,0 +1,345 @@
+CS122 Assignment 4 - Join Optimization - Design Document
+========================================================
+
+A:  Logistics
+-------------
+
+A1.  List your team name and the people who worked on this assignment.
+
+     <team name>'); DROP TABLE Teams;--
+
+     Qingzhuo Aw Young <qingzhuo@caltech.edu>
+     Timur Kuzhagaliyev <timbokz@caltech.edu>
+
+A2.  Specify the repository URL, tag name and commit-hash of the Git version
+     you are submitting for your assignment.  (You can list the commit hashes
+     of your repository tags with this command:  git show-ref --tags)
+
+     Repository URL:  git@github.com:veniversum/cs122-db.git
+     Tag name:        <tag>
+     Commit hash:     <hash>
+
+A3.  Specify any late tokens you are applying to this assignment, or
+     "none" if no late tokens.
+     None
+
+A4.  Briefly describe what parts of the assignment each teammate focused on.
+
+    Timur: Base join optimization algorithm, conjunct collections, prepare()
+           optimizaton
+    Qingzhuo: Column reordering, pushing conjuncts into subqueries, cost planning
+
+B:  Generating Optimal Joins
+----------------------------
+
+B1.  Briefly describe how you generate an "optimal" access to a base table.
+
+    First, during the `collectDetails()` phase we recursively traverse the
+    query and identify all of the base tables as leaf nodes (extracting all
+    conjuncts in the process). In `makeLeafNode()`, we create a FileScanNode
+    using the relevant table. We also extract the schema from this table, and
+    check which conjuncts (selections) we can apply to the base-table. This
+    supports the idea of applying selections as early as possible.
+
+    During generation of joins, we're using the dynamic programming approach
+    of picking the best combination of leaf nodes and combining them into a
+    plan with the least cost.
+
+
+B2.  Briefly describe how you decide when it is acceptable to push
+     conjuncts down through an outer join.
+
+     We check that the "outer" side of the outer join is not opposite the
+     child we're currently considering. The pseudocode can be expressed as
+     follows:
+
+         newLeftChild := null
+         newRightChild := null
+
+         if no outer join on right:
+             Use schema of the left child to find applicable conjuncts
+             newLeftChild := Join-plan created using the original leftChild
+                             and applicable conjuncts
+
+         if no outer join on left:
+             Use schema of the right child to find applicable conjuncts
+             newRightChild := Join-plan created using the original
+                              rightChild and applicable conjuncts
+
+         if newLeftChild is null:
+             newLeftChild L= Simple join-plan based on leftChild, without
+                             new conjuncts
+
+         if newRightChild is null:
+             newLeftChild L= Simple join-plan based on rightChild, without
+                             new conjuncts
+
+
+B3.  The planner in this assignment is still somewhat limited; for example,
+     we can't push conjuncts down into subqueries.  Using the stores schema,
+     write an example SQL query that includes a subquery, where it would be
+     beneficial to push a conjunct down into the subquery.  (Your planner
+     obviously doesn't need to perform this optimization.)
+
+    We can modify the queries given in section C. For example, we know that
+    this query is optimized completely by our planner:
+
+        SELECT store_id, property_costs
+        FROM stores, cities, states
+        WHERE stores.city_id = cities.city_id AND
+              cities.state_id = states.state_id AND
+              state_name = 'Oregon' AND
+              property_costs > 500000;
+
+    But if we convert it into a subquery, we get terrible performance:
+
+        SELECT s.store_id, s.property_costs FROM (
+            SELECT store_id, property_costs, states.state_name
+            FROM stores, cities, states
+            WHERE stores.city_id = cities.city_id AND
+                  cities.state_id = states.state_id AND
+                  property_costs > 500000
+        ) s WHERE s.state_name = 'Oregon';
+
+    We implemented pushing conjuncts into subqueries so it has the same
+    performance as before now. The before/after explain output is in E2.
+
+
+B4.  Enumerate the situations where you call prepare() on plans being
+     generated.  Since this operation is somewhat expensive, do you
+     see any ways to reduce the number of times you call prepare() in
+     your implementation?
+
+    Places where .prepare() is called:
+
+        1) In the end of .makePlan(), once we're done preparing a plan.
+        2) Once in .makeLeafPlan(). (The reason we only need to do it
+           once in the end is because the nodes we get are either
+           already prepared or we can get schema from other objects.)
+        3) Once for every *new* plan that's created in the loop inside
+           .makeJoinPlan(). We do this here so that parent plan(s) in
+           the next iteration can get the schema of the current plan
+           without having to .prepare() it.
+
+    Our implementations of PlanNode are immutable, so there's no need
+    to do all the work in prepare() again if it has been called previously.
+
+    In PlanNode.prepare(), we check if hasBeenPrepared is true, and
+    just return if it is. All PlanNode implementations calls super.prepare()
+    first to check if they have been prepared.
+
+    This allows us to reuse leaf plans in join nodes without having to
+    incur the costs of prepare each time the join node is prepared, as
+    the recursion will not propagate pass already prepared child nodes.
+
+
+B5.  In what situations can you end up with unused conjuncts after
+     planning joins.  Illustrate by giving an example SQL statement
+     that would have unused conjuncts after join planning, again using
+     the stores schema.  Then, describe a strategy for where/how these
+     left-over conjuncts should be applied in the plan.
+
+     There should not be unused conjuncts, since we are only using
+     conjuncts in the where clause in planning joins. All conjuncts can
+     be applied at either the FileScanNodes or NestedLoopJoinNodes.
+
+     Any left over conjunct indicates that the query expression is
+     invalid.
+
+     We are not using conjuncts from the having clause since they
+     can contain aggregates and functions.
+
+
+
+
+C:  Costing SQL Queries
+-----------------------
+
+After you have loaded the stores-28K.sql data and have analyzed all of
+the tables in that schema, run the following explain operations and paste
+the output from your planner (excluding debug output!).
+
+If there is anything unusual or non-obvious about your output, feel free
+to write explanatory notes after your output.
+
+
+    We implemented finer level costing for both CPU and IO costs.
+    CPU costs are split into tuple processing, and comparison operators/functions
+    IO costs are split between random and sequential accesses.
+
+    The parameters are tunable according to hardware, but default values are taken from
+    https://www.postgresql.org/docs/10/static/runtime-config-query.html
+
+    With this modification, we can compare plan costs by simply summing up CPU & IO costs,
+    as they have the same 'units'.
+
+
+C1.  EXPLAIN SELECT * FROM cities WHERE population > 5000000;
+
+    Explain Plan:
+        FileScan[table:  CITIES, pred:  CITIES.POPULATION > 5000000] cost=[tuples=99.3, tupSize=23.8, cpuCost=1.6, blockIOs=1, ioCost=4.0]
+
+
+C2.  EXPLAIN SELECT store_id FROM stores, cities
+     WHERE stores.city_id = cities.city_id AND
+           cities.population > 1000000;
+
+    Explain Plan:
+        Project[values:  [STORES.STORE_ID]] cost=[tuples=1776.0, tupSize=36.8, cpuCost=4409.2, blockIOs=2004, ioCost=2019.0]
+            NestedLoop[join type: INNER, pred:  STORES.CITY_ID == CITIES.CITY_ID] cost=[tuples=1776.0, tupSize=36.8, cpuCost=4391.5, blockIOs=2004, ioCost=2019.0]
+                FileScan[table:  STORES] cost=[tuples=2000.0, tupSize=13.0, cpuCost=20.0, blockIOs=4, ioCost=7.0]
+                FileScan[table:  CITIES, pred:  CITIES.POPULATION > 1000000] cost=[tuples=225.6, tupSize=23.8, cpuCost=1.6, blockIOs=1, ioCost=4.0]
+
+
+C3.  EXPLAIN SELECT store_id FROM stores JOIN
+                    (SELECT city_id FROM cities
+                     WHERE population > 1000000) AS big_cities
+                    ON stores.city_id = big_cities.city_id;
+
+    Explain Plan:
+        Project[values:  [STORES.STORE_ID]] cost=[tuples=1776.0, tupSize=36.8, cpuCost=5678.9, blockIOs=903, ioCost=909.3]
+            NestedLoop[join type: INNER, pred:  STORES.CITY_ID == BIG_CITIES.CITY_ID] cost=[tuples=1776.0, tupSize=36.8, cpuCost=5661.2, blockIOs=903, ioCost=909.3]
+                Rename[resultTableName=BIG_CITIES] cost=[tuples=225.6, tupSize=23.8, cpuCost=3.9, blockIOs=1, ioCost=4.0]
+                    Project[values:  [CITIES.CITY_ID]] cost=[tuples=225.6, tupSize=23.8, cpuCost=3.9, blockIOs=1, ioCost=4.0]
+                        FileScan[table:  CITIES, pred:  CITIES.POPULATION > 1000000] cost=[tuples=225.6, tupSize=23.8, cpuCost=1.6, blockIOs=1, ioCost=4.0]
+                FileScan[table:  STORES] cost=[tuples=2000.0, tupSize=13.0, cpuCost=20.0, blockIOs=4, ioCost=7.0]
+
+
+C4.  EXPLAIN SELECT store_id, property_costs
+     FROM stores, cities, states
+     WHERE stores.city_id = cities.city_id AND
+           cities.state_id = states.state_id AND
+           state_name = 'Oregon' AND
+           property_costs > 500000;
+
+    Explain Plan:
+        Project[values:  [STORES.STORE_ID, STORES.PROPERTY_COSTS]] cost=[tuples=15.0, tupSize=52.5, cpuCost=413.6, blockIOs=18, ioCost=27.0]
+            NestedLoop[join type: INNER, pred:  STORES.CITY_ID == CITIES.CITY_ID] cost=[tuples=15.0, tupSize=52.5, cpuCost=413.4, blockIOs=18, ioCost=27.0]
+                NestedLoop[join type: INNER, pred:  CITIES.STATE_ID == STATES.STATE_ID] cost=[tuples=4.0, tupSize=39.5, cpuCost=3.3, blockIOs=2, ioCost=8.0]
+                    FileScan[table:  STATES, pred:  STATES.STATE_NAME == 'Oregon'] cost=[tuples=1.0, tupSize=15.7, cpuCost=0.1, blockIOs=1, ioCost=4.0]
+                    FileScan[table:  CITIES] cost=[tuples=254.0, tupSize=23.8, cpuCost=2.5, blockIOs=1, ioCost=4.0]
+                FileScan[table:  STORES, pred:  STORES.PROPERTY_COSTS > 500000] cost=[tuples=999.0, tupSize=13.0, cpuCost=100.0, blockIOs=4, ioCost=7.0]
+
+
+E:  Extra Credit [OPTIONAL]
+---------------------------
+
+If you implemented any extra-credit tasks for this assignment, describe
+them here.  The description should be like this, with stuff in "<>" replaced.
+(The value i starts at 1 and increments...)
+
+E1:  Better costing of CPU & IO operations
+
+     In the old implementation, CPU costs are pretty arbitrary, and IO costs are the same
+     regardsless on sequential or random access. They are also hard to compare directly
+     since they have completely different units.
+
+     Naive approaches like Piazza post @62 below fails to find a compromise between CPU and IO costs:
+         1) Compare the number of block I/Os because they are the slowest operation.
+         2) If two plans have the same number of block I/Os, then compare CPU cost.
+         3) Then, if two plans have the exact same CPU cost (probably unlikely), then compare tupleSize and/or numTuples
+
+     We use a more refined approach which distinguishes between different CPU and IO ops, and
+     sets them to a similar scale, with a sequential page read as a yardstick with cost of 1.0.
+     Relative costs values are taken from https://www.postgresql.org/docs/current/static/runtime-config-query.html#RUNTIME-CONFIG-QUERY-CONSTANTS
+     This also allows the planner to vary strategies according to hardware, e.g. SSD vs HDDs.
+
+     The cost of a plan is now simply CPU cost + IO cost.
+
+E2:  Propagate predicates in WHERE clause down into subqueries.
+
+     We no longer treat subquery plan optimization as blackbox, and try to use the predicates in the enclosing query
+     to optimize subqueries (which means potentially better optimized queries overall).
+
+     To do this, we have to figure out renaming of tables if any in SubqueryConjunctsExpressionProcessor, and
+     update the WHERE expression of the enclosing query to remove any predicates that we optimized into the
+     subquery,
+
+     EXPLAIN SELECT s.store_id, s.property_costs
+     FROM (SELECT store_id, property_costs, states.state_name
+           FROM stores, cities, states
+           WHERE stores.city_id = cities.city_id AND cities.state_id = states.state_id AND property_costs > 500000) s
+     WHERE s.state_name = 'Oregon';
+
+     Without optimization: Total cost = 8949.7
+     Explain Plan:
+        Project[values:  [S.STORE_ID, S.PROPERTY_COSTS]] cost=[tuples=19.6, tupSize=52.5, cpuCost=3940.7, blockIOs=2000, ioCost=5009.0]
+            SimpleFilter[pred:  S.STATE_NAME == 'Oregon'] cost=[tuples=19.6, tupSize=52.5, cpuCost=3940.5, blockIOs=2000, ioCost=5009.0]
+                Rename[resultTableName=S] cost=[tuples=998.0, tupSize=52.5, cpuCost=3938.0, blockIOs=2000, ioCost=5009.0]
+                    Project[values:  [STORES.STORE_ID, STORES.PROPERTY_COSTS, STATES.STATE_NAME]] cost=[tuples=998.0, tupSize=52.5, cpuCost=3938.0, blockIOs=2000, ioCost=5009.0]
+                        NestedLoop[join type: INNER, pred:  CITIES.STATE_ID == STATES.STATE_ID] cost=[tuples=998.0, tupSize=52.5, cpuCost=3928.0, blockIOs=2000, ioCost=5009.0]
+                            NestedLoop[join type: INNER, pred:  STORES.CITY_ID == CITIES.CITY_ID] cost=[tuples=998.0, tupSize=36.8, cpuCost=3281.8, blockIOs=1002, ioCost=1018.0]
+                                FileScan[table:  STORES, pred:  STORES.PROPERTY_COSTS > 500000] cost=[tuples=999.0, tupSize=13.0, cpuCost=100.0, blockIOs=4, ioCost=7.0]
+                                FileScan[table:  CITIES] cost=[tuples=254.0, tupSize=23.8, cpuCost=2.5, blockIOs=1, ioCost=4.0]
+                            FileScan[table:  STATES] cost=[tuples=51.0, tupSize=15.7, cpuCost=0.5, blockIOs=1, ioCost=4.0]
+
+     With optimization: Total cost = 440.7
+     Explain Plan:
+         Project[values:  [S.STORE_ID, S.PROPERTY_COSTS]] cost=[tuples=15.0, tupSize=52.5, cpuCost=413.7, blockIOs=18, ioCost=27.0]
+            Rename[resultTableName=S] cost=[tuples=15.0, tupSize=52.5, cpuCost=413.6, blockIOs=18, ioCost=27.0]
+                Project[values:  [STORES.STORE_ID, STORES.PROPERTY_COSTS, STATES.STATE_NAME]] cost=[tuples=15.0, tupSize=52.5, cpuCost=413.6, blockIOs=18, ioCost=27.0]
+                    NestedLoop[join type: INNER, pred:  STORES.CITY_ID == CITIES.CITY_ID] cost=[tuples=15.0, tupSize=52.5, cpuCost=413.4, blockIOs=18, ioCost=27.0]
+                        NestedLoop[join type: INNER, pred:  CITIES.STATE_ID == STATES.STATE_ID] cost=[tuples=4.0, tupSize=39.5, cpuCost=3.3, blockIOs=2, ioCost=8.0]
+                            FileScan[table:  STATES, pred:  STATES.STATE_NAME == 'Oregon'] cost=[tuples=1.0, tupSize=15.7, cpuCost=0.1, blockIOs=1, ioCost=4.0]
+                            FileScan[table:  CITIES] cost=[tuples=254.0, tupSize=23.8, cpuCost=2.5, blockIOs=1, ioCost=4.0]
+                        FileScan[table:  STORES, pred:  STORES.PROPERTY_COSTS > 500000] cost=[tuples=999.0, tupSize=13.0, cpuCost=100.0, blockIOs=4, ioCost=7.0]
+
+
+E3:  Correct ordering of SELECT * after join reordering
+
+     I'm not sure if this is considered extra credit or part of the normal requirements.
+     Piazza thread @63
+
+     According to SQL 92 §7.9 query specification,
+
+     Syntax Rules
+
+         1) Let T be the result of the <table expression>.
+
+         2) The degree of the table specified by a <query specification> is
+            equal to the cardinality of the <select list>.
+
+         3) Case:
+
+            a) If the <select list> "*" is simply contained in a <subquery>
+              .....
+
+            b) Otherwise, the <select list> "*" is equivalent to a <value
+              expression> sequence in which each <value expression> is a
+              <column reference> that references a column of T and each
+              column of T is referenced exactly once. The columns are ref-
+              erenced in the ascending sequence of their ordinal position
+              within T.
+
+      Thus we need to ensure that the column order after peforming join
+      optimizations is does not change. If it does, we add a PROJECT node
+      to bring them back to the correct order.
+
+      Our assignment 1 tests in TestSimpleJoins checks for this. Most of
+      the tests will fail otherwise because they are sensitive to column
+      ordering.
+
+
+F:  Feedback [OPTIONAL]
+-----------------------
+
+WE NEED YOUR FEEDBACK!  Thoughtful and constructive input will help us to
+improve future versions of the course.  These questions are OPTIONAL, and
+they obviously won't affect your grade in any way (including if you hate
+everything about the assignment and databases in general, or Donnie and/or
+the TAs in particular).  Feel free to answer as many or as few of them as
+you wish.
+
+F1.  How many hours total did your team spend on this assignment?
+     (That is, the sum of each teammate's time spent on the assignment.)
+
+F2.  What parts of the assignment were most time-consuming?  Why?
+
+F3.  Did you find any parts of the assignment particularly instructive?
+     Correspondingly, did any parts feel like unnecessary busy-work?
+
+F4.  Did you particularly enjoy any parts of the assignment?  Were there
+     any parts that you particularly disliked?
+
+F5.  Do you have any suggestions for how future versions of the
+     assignment can be improved?
