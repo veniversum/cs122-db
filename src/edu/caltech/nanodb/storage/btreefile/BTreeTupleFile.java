@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.expressions.OrderByExpression;
@@ -164,6 +165,11 @@ public class BTreeTupleFile implements SequentialTupleFile {
     @Override
     public TableStats getStats() {
         return stats;
+    }
+
+    @Override
+    public void setFsmFile(FreeSpaceMapFile fsmFile) {
+        throw new UnsupportedOperationException();
     }
 
 
