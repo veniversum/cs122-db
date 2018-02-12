@@ -54,7 +54,7 @@
     </packages>
   </test>
 
-  <test name="assignment5-tests">
+  <test name="subquery-tests">
     <classes>
       <class name="edu.caltech.test.nanodb.sql.TestScalarSubquery" />
       <class name="edu.caltech.test.nanodb.sql.TestExists" />
@@ -62,7 +62,6 @@
     </classes>
   </test>
 
-  <!--
   <test name="assignment6-tests">
     <classes>
       <class name="edu.caltech.test.nanodb.storage.btreefile.TestBTreeFile">
@@ -73,6 +72,12 @@
           <include name="testBTreeTableThreeLevelInsert" />
         </methods>
       </class>
+    </classes>
+  </test>
+
+  <!--
+  <test name="index-tests">
+    <classes>
       <class name="edu.caltech.test.nanodb.indexes.TestIndexOps">
         <methods>
           <include name="testCreateNormalIndex" />
