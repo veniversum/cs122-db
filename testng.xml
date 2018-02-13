@@ -62,7 +62,7 @@
     </classes>
   </test>
 
-  <test name="assignment6-tests">
+  <test name="assignment5-tests">
     <classes>
       <class name="edu.caltech.test.nanodb.storage.btreefile.TestBTreeFile">
         <methods>
@@ -70,6 +70,12 @@
           <include name="testBTreeTableTwoPageInsert" />
           <include name="testBTreeTableTwoLevelInsert" />
           <include name="testBTreeTableThreeLevelInsert" />
+
+          <include name="testBTreeTableOnePageInsertDelete" />
+          <include name="testBTreeTableTwoPageInsertDelete" />
+          <include name="testBTreeTableTwoLevelInsertDelete" />
+          <include name="testBTreeTableThreeLevelInsertDelete" />
+          <include name="testBTreeTableMultiLevelInsertDelete" />
         </methods>
       </class>
     </classes>
@@ -100,11 +106,6 @@
     <classes>
       <class name="edu.caltech.test.nanodb.storage.btreefile.TestBTreeFile">
         <methods>
-          <include name="testBTreeTableOnePageInsertDelete" />
-          <include name="testBTreeTableTwoPageInsertDelete" />
-          <include name="testBTreeTableTwoLevelInsertDelete" />
-          <include name="testBTreeTableThreeLevelInsertDelete" />
-          <include name="testBTreeTableMultiLevelInsertDelete" />
         </methods>
       </class>
     </classes>
