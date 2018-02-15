@@ -1,19 +1,17 @@
 package edu.caltech.nanodb.storage.btreefile;
 
 
-import java.io.IOException;
-
-import java.util.List;
-
-import edu.caltech.nanodb.relations.Schema;
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.expressions.TupleLiteral;
+import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.Tuple;
 import edu.caltech.nanodb.storage.DBPage;
 import edu.caltech.nanodb.storage.PageTuple;
+import org.apache.log4j.Logger;
 
-import static edu.caltech.nanodb.storage.btreefile.BTreePageTypes.*;
+import java.io.IOException;
+import java.util.List;
+
+import static edu.caltech.nanodb.storage.btreefile.BTreePageTypes.BTREE_INNER_PAGE;
 
 
 /**
@@ -722,23 +720,38 @@ public class InnerPage implements DataPage {
             }
         }
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * You can use PageTuple.storeTuple() to write a key into a DBPage.
-         *
-         * The DBPage.write() method is useful for copying a large chunk of
-         * data from one DBPage to another.
-         *
-         * Your implementation also needs to properly handle the incoming
-         * parent-key, and produce a new parent-key as well.
-         */
-        logger.error("NOT YET IMPLEMENTED:  movePointersLeft()");
+        final TupleLiteral newParentKey;
+        final int startOffset = pointerOffsets[count - 1] + Short.BYTES;
+        final int moveEndOffset;
+        final int len = startOffset - OFFSET_FIRST_POINTER;
+        int leftSiblingWriteOffset = leftSibling.endOffset;
+
+        if (count == numPointers) {
+            newParentKey = null;
+            moveEndOffset = endOffset;
+        } else {
+            newParentKey = new TupleLiteral(getKey(count - 1));
+            moveEndOffset = pointerOffsets[count];
+        }
+
+        // Use parent key to bridge boundary pointers
+        if (parentKey != null) {
+            leftSiblingWriteOffset = PageTuple.storeTuple(leftSibling.dbPage, leftSibling.endOffset, schema, parentKey);
+        }
+        // Move data over to left sibling
+        leftSibling.dbPage.write(leftSiblingWriteOffset, dbPage.getPageData(), OFFSET_FIRST_POINTER, len);
+        leftSibling.dbPage.writeShort(OFFSET_NUM_POINTERS, leftSibling.numPointers + count);
+
+        // Shift remaining data left to fill up the gap.
+        dbPage.moveDataRange(moveEndOffset, OFFSET_FIRST_POINTER,
+                endOffset - moveEndOffset);
+        dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
 
         // Update the cached info for both non-leaf pages.
         loadPageContents();
         leftSibling.loadPageContents();
 
-        return null;
+        return newParentKey;
     }
 
 
