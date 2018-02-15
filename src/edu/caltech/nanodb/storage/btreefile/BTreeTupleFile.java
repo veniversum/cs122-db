@@ -495,11 +495,9 @@ public class BTreeTupleFile implements SequentialTupleFile {
             int pointerIdx;
             for (pointerIdx = 0; pointerIdx < innerPage.getNumKeys(); pointerIdx++) {
                 if (TupleComparator.comparePartialTuples(searchKey, innerPage.getKey(pointerIdx)) < 0) {
-                    pointerIdx--;
                     break;
                 }
             }
-            pointerIdx++;
             final int levelPageNo = innerPage.getPointer(pointerIdx);
             if (pagePath != null)
                 pagePath.add(levelPageNo);

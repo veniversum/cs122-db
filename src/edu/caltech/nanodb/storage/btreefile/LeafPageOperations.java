@@ -1,17 +1,16 @@
 package edu.caltech.nanodb.storage.btreefile;
 
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.expressions.TupleComparator;
 import edu.caltech.nanodb.expressions.TupleLiteral;
 import edu.caltech.nanodb.relations.Tuple;
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.DBPage;
 import edu.caltech.nanodb.storage.StorageManager;
+import org.apache.log4j.Logger;
+
+import java.io.IOException;
+import java.util.List;
 
 
 /**
@@ -759,17 +758,21 @@ public class LeafPageOperations {
 
         DBPage newDBPage = fileOps.getNewDataPage();
         LeafPage newLeaf = LeafPage.init(newDBPage, tupleFile.getSchema());
+        leaf.setNextPageNo(newLeaf.getPageNo());
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * The LeafPage class provides some helpful operations for moving leaf-
-         * entries to a left or right sibling.
-         *
-         * The parent page must also be updated.  If the leaf node doesn't have
-         * a parent, the tree's depth will increase by one level.
-         */
-        logger.error("NOT YET IMPLEMENTED:  splitLeafAndAddKey()");
-        return null;
+        // Give half of our tuples to new leaf page
+        leaf.moveTuplesRight(newLeaf, leaf.getNumTuples() / 2);
+
+        // Add new parent as root if split page was root
+        if (pathSize < 2) {
+            DBPage newRootPage = fileOps.getNewDataPage();
+            HeaderPage.setRootPageNo(storageManager.loadDBPage(tupleFile.getDBFile(), 0), newRootPage.getPageNo());
+            InnerPage.init(newRootPage, tupleFile.getSchema(), leaf.getPageNo(), newLeaf.getTuple(0), newLeaf.getPageNo());
+        } else {
+            InnerPage parent = innerPageOps.loadPage(pagePath.get(pathSize - 2));
+            parent.addEntry(leaf.getPageNo(), newLeaf.getTuple(0), newLeaf.getPageNo());
+        }
+        return addTupleToLeafPair(leaf, newLeaf, tuple);
     }
 
 

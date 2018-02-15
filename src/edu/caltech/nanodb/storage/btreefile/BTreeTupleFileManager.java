@@ -101,7 +101,7 @@ public class BTreeTupleFileManager implements TupleFileManager {
     @Override
     public void saveMetadata(TupleFile tupleFile) throws IOException {
         // TODO
-        throw new UnsupportedOperationException("NYI:  deleteTupleFile()");
+//        throw new UnsupportedOperationException("NYI:  deleteTupleFile()");
     }
 
 
