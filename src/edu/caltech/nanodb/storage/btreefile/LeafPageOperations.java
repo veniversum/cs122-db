@@ -758,6 +758,7 @@ public class LeafPageOperations {
 
         DBPage newDBPage = fileOps.getNewDataPage();
         LeafPage newLeaf = LeafPage.init(newDBPage, tupleFile.getSchema());
+        newLeaf.setNextPageNo(leaf.getNextPageNo());
         leaf.setNextPageNo(newLeaf.getPageNo());
 
         // Give half of our tuples to new leaf page
@@ -770,7 +771,11 @@ public class LeafPageOperations {
             InnerPage.init(newRootPage, tupleFile.getSchema(), leaf.getPageNo(), newLeaf.getTuple(0), newLeaf.getPageNo());
         } else {
             InnerPage parent = innerPageOps.loadPage(pagePath.get(pathSize - 2));
-            parent.addEntry(leaf.getPageNo(), newLeaf.getTuple(0), newLeaf.getPageNo());
+            innerPageOps.addTuple(parent,
+                    pagePath.subList(0, pathSize - 1),
+                    leaf.getPageNo(),
+                    newLeaf.getTuple(0),
+                    newLeaf.getPageNo());
         }
         return addTupleToLeafPair(leaf, newLeaf, tuple);
     }

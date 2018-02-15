@@ -937,17 +937,27 @@ public class InnerPage implements DataPage {
             }
         }
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * You can use PageTuple.storeTuple() to write a key into a DBPage.
-         *
-         * The DBPage.write() method is useful for copying a large chunk of
-         * data from one DBPage to another.
-         *
-         * Your implementation also needs to properly handle the incoming
-         * parent-key, and produce a new parent-key as well.
-         */
-        logger.error("NOT YET IMPLEMENTED:  movePointersRight()");
+        // Make space if right sibling is not empty
+        if (parentKey != null) {
+            rightSibling.dbPage.moveDataRange(OFFSET_FIRST_POINTER,
+                    OFFSET_FIRST_POINTER + len + parentKeyLen,
+                    rightSibling.endOffset - OFFSET_FIRST_POINTER);
+            // Use parent key as bridge between boundary pointers
+            PageTuple.storeTuple(rightSibling.dbPage, OFFSET_FIRST_POINTER + len, schema, parentKey);
+        }
+
+        // Move data over to right sibling
+        rightSibling.dbPage.write(OFFSET_FIRST_POINTER, dbPage.getPageData(),
+                startOffset, len);
+
+        // Update right sibling pointers count
+        rightSibling.dbPage.writeShort(OFFSET_NUM_POINTERS,
+                rightSibling.numPointers + count);
+
+        // Update self pointers count
+        dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
+
+        final TupleLiteral newParentKey = new TupleLiteral(getKey(numPointers - count - 1));
 
         // Update the cached info for both non-leaf pages.
         loadPageContents();
@@ -962,7 +972,7 @@ public class InnerPage implements DataPage {
                 rightSibling.toFormattedString());
         }
 
-        return null;
+        return newParentKey;
     }
 
 
