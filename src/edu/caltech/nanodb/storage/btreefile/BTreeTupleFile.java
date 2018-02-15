@@ -492,17 +492,18 @@ public class BTreeTupleFile implements SequentialTupleFile {
         // Recursively navigate downwards until we reach a leaf page.
         while (pageType != BTREE_LEAF_PAGE) {
             final InnerPage innerPage = new InnerPage(dbPage, schema);
-            int levelPageNo;
-            for (levelPageNo = 0; levelPageNo < innerPage.getNumKeys(); levelPageNo++) {
-                if (TupleComparator.comparePartialTuples(searchKey, innerPage.getKey(levelPageNo)) < 0) {
-                    levelPageNo--;
+            int pointerIdx;
+            for (pointerIdx = 0; pointerIdx < innerPage.getNumKeys(); pointerIdx++) {
+                if (TupleComparator.comparePartialTuples(searchKey, innerPage.getKey(pointerIdx)) < 0) {
+                    pointerIdx--;
                     break;
                 }
             }
-            levelPageNo++;
+            pointerIdx++;
+            final int levelPageNo = innerPage.getPointer(pointerIdx);
             if (pagePath != null)
                 pagePath.add(levelPageNo);
-            dbPage = storageManager.loadDBPage(dbFile, innerPage.getPointer(levelPageNo));
+            dbPage = storageManager.loadDBPage(dbFile, levelPageNo);
             pageType = dbPage.readByte(0);
             if (pageType != BTREE_INNER_PAGE && pageType != BTREE_LEAF_PAGE)
                 throw new IOException("Invalid page type encountered:  " + pageType);
