@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
 import org.apache.log4j.Logger;
@@ -24,6 +25,8 @@ import edu.caltech.nanodb.storage.PageTuple;
 import edu.caltech.nanodb.storage.SequentialTupleFile;
 import edu.caltech.nanodb.storage.StorageManager;
 import edu.caltech.nanodb.storage.TupleFileManager;
+
+import javax.swing.text.html.Option;
 
 import static edu.caltech.nanodb.storage.btreefile.BTreePageTypes.*;
 
@@ -169,7 +172,6 @@ public class BTreeTupleFile implements SequentialTupleFile {
 
     @Override
     public void setFsmFile(FreeSpaceMapFile fsmFile) {
-        throw new UnsupportedOperationException();
     }
 
 
@@ -487,20 +489,25 @@ public class BTreeTupleFile implements SequentialTupleFile {
         if (pagePath != null)
             pagePath.add(rootPageNo);
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * Don't forget to update the page-path as you navigate the index
-         * structure, if it is provided by the caller.
-         *
-         * Use the TupleComparator.comparePartialTuples() method for comparing
-         * the index's keys with the passed-in search key.
-         *
-         * It's always a good idea to code defensively:  if you see an invalid
-         * page-type, flag it with an IOException, as done earlier.
-         */
-        logger.error("NOT YET IMPLEMENTED:  navigateToLeafPage()");
-
-        return null;
+        // Recursively navigate downwards until we reach a leaf page.
+        while (pageType != BTREE_LEAF_PAGE) {
+            final InnerPage innerPage = new InnerPage(dbPage, schema);
+            int levelPageNo;
+            for (levelPageNo = 0; levelPageNo < innerPage.getNumKeys(); levelPageNo++) {
+                if (TupleComparator.comparePartialTuples(searchKey, innerPage.getKey(levelPageNo)) < 0) {
+                    levelPageNo--;
+                    break;
+                }
+            }
+            levelPageNo++;
+            if (pagePath != null)
+                pagePath.add(levelPageNo);
+            dbPage = storageManager.loadDBPage(dbFile, innerPage.getPointer(levelPageNo));
+            pageType = dbPage.readByte(0);
+            if (pageType != BTREE_INNER_PAGE && pageType != BTREE_LEAF_PAGE)
+                throw new IOException("Invalid page type encountered:  " + pageType);
+        }
+        return new LeafPage(dbPage, schema);
     }
 
 
