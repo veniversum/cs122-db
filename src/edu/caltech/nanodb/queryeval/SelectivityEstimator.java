@@ -6,7 +6,6 @@ import edu.caltech.nanodb.relations.ColumnInfo;
 import edu.caltech.nanodb.relations.ColumnType;
 import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Schema;
-import javafx.util.Pair;
 import org.apache.log4j.Logger;
 
 import java.lang.reflect.Array;
@@ -237,7 +236,7 @@ public class SelectivityEstimator {
 
 
                 // Check if we can treat this OR as `col IN (values)`
-                Pair<Expression, ArrayList<Expression>> inValuePair
+                AbstractMap.SimpleEntry<Expression, ArrayList<Expression>> inValuePair
                         = attemptConvertOrToInValues(terms);
 
                 if (inValuePair != null) {
@@ -269,7 +268,7 @@ public class SelectivityEstimator {
     }
 
 
-    private static Pair<Expression, ArrayList<Expression>>
+    private static AbstractMap.SimpleEntry<Expression, ArrayList<Expression>>
     attemptConvertOrToInValues(List<Expression> terms) {
         ArrayList<Expression> inValuesExprs = new ArrayList<>();
         String columnName = null;
@@ -299,7 +298,7 @@ public class SelectivityEstimator {
             inValuesExprs.add(right);
         }
 
-        return new Pair<>(colExpr, inValuesExprs);
+        return new AbstractMap.SimpleEntry<>(colExpr, inValuesExprs);
     }
 
 
