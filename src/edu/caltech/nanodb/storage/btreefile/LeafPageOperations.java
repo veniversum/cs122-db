@@ -156,12 +156,15 @@ public class LeafPageOperations {
         // siblings and coalesce/redistribute in the direction that makes
         // the most sense...
 
+        InnerPage parent =
+                innerPageOps.loadPage(pagePath.get(pagePath.size() - 2));
         LeafPage leftSibling = null;
-        if (leftPageNo != -1)
+        if (leftPageNo != -1 && parent.getIndexOfPointer(leftPageNo) != -1)
             leftSibling = loadLeafPage(leftPageNo);
 
+
         LeafPage rightSibling = null;
-        if (rightPageNo != -1)
+        if (rightPageNo != -1 && parent.getIndexOfPointer(rightPageNo) != -1)
             rightSibling = loadLeafPage(rightPageNo);
 
         assert leftSibling != null || rightSibling != null;
@@ -209,8 +212,6 @@ public class LeafPageOperations {
             // page was coalesced into its left sibling, we need to remove
             // the tuple to the left of the pointer being removed.
 
-            InnerPage parent =
-                innerPageOps.loadPage(pagePath.get(pagePath.size() - 2));
 
             List<Integer> parentPagePath = pagePath.subList(0, pagePath.size() - 1);
             innerPageOps.deletePointer(parent, parentPagePath, leafPageNo,
@@ -256,9 +257,6 @@ public class LeafPageOperations {
             // we need to remove it from the parent page.  Also, since the
             // page was coalesced into its right sibling, we need to remove
             // the tuple to the right of the pointer being removed.
-
-            InnerPage parent =
-                innerPageOps.loadPage(pagePath.get(pagePath.size() - 2));
 
             List<Integer> parentPagePath = pagePath.subList(0, pagePath.size() - 1);
             innerPageOps.deletePointer(parent, parentPagePath, leafPageNo,
@@ -384,8 +382,6 @@ public class LeafPageOperations {
                 }
             }
 
-            InnerPage parent =
-                innerPageOps.loadPage(pagePath.get(pagePath.size() - 2));
             int index;
 
             if (adjPage == leftSibling) {
@@ -396,6 +392,11 @@ public class LeafPageOperations {
             else { // adjPage == right sibling
                 adjPage.moveTuplesLeft(leaf, tuplesToMove);
                 index = parent.getIndexOfPointer(leaf.getPageNo());
+//                if (index >= parent.getNumKeys()) {
+//                    index -= parent.getNumKeys();
+//                    parent = innerPageOps.loadPage(parent.getRightSibling(pagePath.subList(0, pagePath.size() - 1), new InnerPageOperations(storageManager, tupleFile, fileOps)));
+//                    innerPageOps.replaceTuple(parent, pagePath.subList(0, pagePath.size() - 1), leaf, adjPage.getTuple(0), index);
+//                }
                 parent.replaceTuple(index, adjPage.getTuple(0));
             }
         }

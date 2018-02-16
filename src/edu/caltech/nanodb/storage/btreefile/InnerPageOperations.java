@@ -142,6 +142,12 @@ public class InnerPageOperations {
                     // Now add new key, and put pagePtr2 back after pagePtr1.
                     addTuple(page, pagePath, pagePtr1, key1, pagePtr2);
                 }
+//                if (i == 0 && pagePath.size() > 1) {
+//                    final InnerPage parentPage = loadPage(pagePath.get(pagePath.size() - 2));
+//                    final int indexOfPointer = parentPage.getIndexOfPointer(page.getPageNo());
+//                    if (indexOfPointer > 0)
+//                        parentPage.replaceTuple(indexOfPointer - 1, key1);
+//                }
 
                 if (logger.isTraceEnabled()) {
                     logger.trace("Contents of inner page " + page.getPageNo() +
@@ -378,12 +384,13 @@ public class InnerPageOperations {
         // siblings and coalesce/redistribute in the direction that makes
         // the most sense...
 
+        InnerPage parent = loadPage(pagePath.get(pagePath.size() - 2));
         InnerPage leftSibling = null;
-        if (leftPageNo != -1)
+        if (leftPageNo != -1 && parent.getIndexOfPointer(leftPageNo) != -1)
             leftSibling = loadPage(leftPageNo);
 
         InnerPage rightSibling = null;
-        if (rightPageNo != -1)
+        if (rightPageNo != -1 && parent.getIndexOfPointer(rightPageNo) != -1)
             rightSibling = loadPage(rightPageNo);
 
         // Relocating or coalescing entries requires updating the parent node.
@@ -543,12 +550,12 @@ public class InnerPageOperations {
                     (adjPage == leftSibling ? "left" : "right"), adjPage.getPageNo()));
 
             if (adjPage == leftSibling) {
-                adjPage.movePointersRight(page, entriesToMove, parentKey);
-                parentPage.replaceTuple(indexInParentPage - 1, page.getKey(0));
+                TupleLiteral k = adjPage.movePointersRight(page, entriesToMove, parentKey);
+                parentPage.replaceTuple(indexInParentPage - 1, k);
             }
             else { // adjPage == right sibling
-                adjPage.movePointersLeft(page, entriesToMove, parentKey);
-                parentPage.replaceTuple(indexInParentPage, adjPage.getKey(0));
+                TupleLiteral k = adjPage.movePointersLeft(page, entriesToMove, parentKey);
+                parentPage.replaceTuple(indexInParentPage, k);
             }
         }
     }

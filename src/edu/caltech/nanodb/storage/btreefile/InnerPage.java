@@ -1,6 +1,7 @@
 package edu.caltech.nanodb.storage.btreefile;
 
 
+import edu.caltech.nanodb.expressions.TupleComparator;
 import edu.caltech.nanodb.expressions.TupleLiteral;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.Tuple;
@@ -721,7 +722,7 @@ public class InnerPage implements DataPage {
         }
 
         final TupleLiteral newParentKey;
-        final int startOffset = pointerOffsets[count - 1] + Short.BYTES;
+        final int startOffset = pointerOffsets[count - 1] + 2;
         final int moveEndOffset;
         final int len = startOffset - OFFSET_FIRST_POINTER;
         int leftSiblingWriteOffset = leftSibling.endOffset;
@@ -970,7 +971,8 @@ public class InnerPage implements DataPage {
         // Update self pointers count
         dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
 
-        final TupleLiteral newParentKey = new TupleLiteral(getKey(numPointers - count - 1));
+        final TupleLiteral newParentKey = count == numPointers ?
+                null : new TupleLiteral(getKey(numPointers - count - 1));
 
         // Update the cached info for both non-leaf pages.
         loadPageContents();
