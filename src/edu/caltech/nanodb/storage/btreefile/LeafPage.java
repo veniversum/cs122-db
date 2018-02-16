@@ -1,21 +1,19 @@
 package edu.caltech.nanodb.storage.btreefile;
 
 
-import java.io.IOException;
+import edu.caltech.nanodb.expressions.TupleComparator;
+import edu.caltech.nanodb.expressions.TupleLiteral;
+import edu.caltech.nanodb.relations.Schema;
+import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.storage.DBPage;
+import edu.caltech.nanodb.storage.PageTuple;
+import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.caltech.nanodb.relations.Schema;
-import edu.caltech.nanodb.relations.Tuple;
-import org.apache.log4j.Logger;
-
-import edu.caltech.nanodb.expressions.TupleComparator;
-import edu.caltech.nanodb.expressions.TupleLiteral;
-import edu.caltech.nanodb.storage.DBPage;
-import edu.caltech.nanodb.storage.PageTuple;
-
-import static edu.caltech.nanodb.storage.btreefile.BTreePageTypes.*;
+import static edu.caltech.nanodb.storage.btreefile.BTreePageTypes.BTREE_LEAF_PAGE;
 
 
 /**
@@ -341,6 +339,45 @@ public class LeafPage implements DataPage {
         return leftSiblingPageNo;
     }
 
+    /**
+     * Given a leaf page in the B<sup>+</sup> tree file, returns the page
+     * number of the left cousin/sibling, or -1 if there is no left
+     * cousin/sibling to this node.
+     *
+     * @param pagePath the page path from root to this leaf page
+     * @param innerOps the inner page ops that allows this method to
+     *                 load inner pages and navigate the tree
+     * @return the page number of the left cousin/sibling leaf-node, or -1 if there
+     * is no left cousin/sibling
+     */
+    public int getLeftCousin(List<Integer> pagePath, InnerPageOperations innerOps) throws IOException {
+        int childPageNo = pagePath.get(pagePath.size() - 1);
+        int pagePtr = -1;
+        int uplevels;
+
+        // Go up the tree until we find a common ancestor
+        for (uplevels = pagePath.size() - 2; uplevels >= 0; uplevels--) {
+            final int curPageNo = pagePath.get(uplevels);
+            InnerPage innerPage = innerOps.loadPage(curPageNo);
+            int ptrIdx = innerPage.getIndexOfPointer(childPageNo);
+            if (ptrIdx > 0) {
+                pagePtr = innerPage.getPointer(ptrIdx - 1);
+                break;
+            }
+            childPageNo = curPageNo;
+        }
+
+        // Can't find common ancestor, we are either root or already leftmost!
+        if (pagePtr < 0) return pagePtr;
+
+        // Travel down again from common ancestor, to get left cousin
+        for (int i = uplevels; i < pagePath.size() - 2; i++) {
+            final InnerPage innerPage = innerOps.loadPage(pagePtr);
+            pagePtr = innerPage.getPointer(innerPage.getNumPointers() - 1);
+        }
+
+        return pagePtr;
+    }
 
     /**
      * Given a leaf page in the B<sup>+</sup> tree file, returns the page

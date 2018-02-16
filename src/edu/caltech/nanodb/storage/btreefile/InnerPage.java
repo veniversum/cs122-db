@@ -721,7 +721,7 @@ public class InnerPage implements DataPage {
         }
 
         final TupleLiteral newParentKey;
-        final int startOffset = pointerOffsets[count - 1] + Short.BYTES;
+        final int startOffset = pointerOffsets[count - 1] + 2;
         final int moveEndOffset;
         final int len = startOffset - OFFSET_FIRST_POINTER;
         int leftSiblingWriteOffset = leftSibling.endOffset;
@@ -970,7 +970,8 @@ public class InnerPage implements DataPage {
         // Update self pointers count
         dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
 
-        final TupleLiteral newParentKey = new TupleLiteral(getKey(numPointers - count - 1));
+        final TupleLiteral newParentKey = count == numPointers ?
+                null : new TupleLiteral(getKey(numPointers - count - 1));
 
         // Update the cached info for both non-leaf pages.
         loadPageContents();

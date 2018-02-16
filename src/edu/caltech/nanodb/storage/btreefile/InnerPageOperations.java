@@ -1,17 +1,16 @@
 package edu.caltech.nanodb.storage.btreefile;
 
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.expressions.TupleLiteral;
 import edu.caltech.nanodb.relations.Tuple;
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.DBPage;
 import edu.caltech.nanodb.storage.PageTuple;
 import edu.caltech.nanodb.storage.StorageManager;
+import org.apache.log4j.Logger;
+
+import java.io.IOException;
+import java.util.List;
 
 
 /**
@@ -378,22 +377,21 @@ public class InnerPageOperations {
         // siblings and coalesce/redistribute in the direction that makes
         // the most sense...
 
+        final int parentPageNo = pagePath.get(pagePath.size() - 2);
+        final InnerPage parentPage = loadPage(parentPageNo);
+
         InnerPage leftSibling = null;
-        if (leftPageNo != -1)
+        if (leftPageNo != -1 && parentPage.getIndexOfPointer(leftPageNo) != -1)
             leftSibling = loadPage(leftPageNo);
 
         InnerPage rightSibling = null;
-        if (rightPageNo != -1)
+        if (rightPageNo != -1 && parentPage.getIndexOfPointer(rightPageNo) != -1)
             rightSibling = loadPage(rightPageNo);
 
         // Relocating or coalescing entries requires updating the parent node.
         // Since the current node has a sibling, it must also have a parent.
 
-        int parentPageNo = pagePath.get(pagePath.size() - 2);
-
-        InnerPage parentPage = loadPage(parentPageNo);
-        // int numPointers = parentPage.getNumPointers();
-        int indexInParentPage = parentPage.getIndexOfPointer(page.getPageNo());
+        final int indexInParentPage = parentPage.getIndexOfPointer(page.getPageNo());
 
         // See if we can coalesce the node into its left or right sibling.
         // When we do the check, we must not forget that each node contains a
@@ -401,9 +399,32 @@ public class InnerPageOperations {
         // space is included in the getUsedSpace() method, but is excluded by
         // the getSpaceUsedByTuples() method.
 
+        // We need to find the potential parent's key size, since that'll need to
+        // fit in the tuple we're coalescing into!
+        final BTreeFilePageTuple leftParentKey;
+        final BTreeFilePageTuple rightParentKey;
+        final int leftParentKeySize;
+        final int rightParentKeySize;
+
+        if (indexInParentPage > 0) {
+            leftParentKey = parentPage.getKey(indexInParentPage - 1);
+            leftParentKeySize = BTreeFilePageTuple.getTupleStorageSize(tupleFile.getSchema(), leftParentKey);
+        } else {
+            leftParentKey = null;
+            leftParentKeySize = 0;
+        }
+
+        if (indexInParentPage < parentPage.getNumKeys()) {
+            rightParentKey = parentPage.getKey(indexInParentPage);
+            rightParentKeySize = BTreeFilePageTuple.getTupleStorageSize(tupleFile.getSchema(), rightParentKey);
+        } else {
+            rightParentKey = null;
+            rightParentKeySize = 0;
+        }
+
         // TODO:  SEE IF WE CAN SIMPLIFY THIS AT ALL...
         if (leftSibling != null &&
-            leftSibling.getUsedSpace() + page.getSpaceUsedByEntries() <
+                leftSibling.getUsedSpace() + page.getSpaceUsedByEntries() + leftParentKeySize <
             leftSibling.getTotalSpace()) {
 
             // Coalesce the current node into the left sibling.
@@ -417,11 +438,10 @@ public class InnerPageOperations {
             // The affected key in the parent page is to the left of this
             // page's index in the parent page, since we are moving entries
             // to the left sibling.
-            Tuple parentKey = parentPage.getKey(indexInParentPage - 1);
 
             // We don't care about the key returned by movePointersLeft(),
             // since we are deleting the parent key anyway.
-            page.movePointersLeft(leftSibling, page.getNumPointers(), parentKey);
+            page.movePointersLeft(leftSibling, page.getNumPointers(), leftParentKey);
 
             logger.debug(String.format("After coalesce-left, page has %d " +
                 "pointers and left sibling has %d pointers.",
@@ -434,9 +454,8 @@ public class InnerPageOperations {
             List<Integer> parentPagePath = pagePath.subList(0, pagePath.size() - 1);
             deletePointer(parentPage, parentPagePath, pageNo,
                 /* delete right key */ false);
-        }
-        else if (rightSibling != null &&
-                rightSibling.getUsedSpace() + page.getSpaceUsedByEntries() <
+        } else if (rightSibling != null &&
+                rightSibling.getUsedSpace() + page.getSpaceUsedByEntries() + rightParentKeySize <
                         rightSibling.getTotalSpace()) {
 
             // Coalesce the current node into the right sibling.
@@ -450,11 +469,10 @@ public class InnerPageOperations {
             // The affected key in the parent page is to the right of this
             // page's index in the parent page, since we are moving entries
             // to the right sibling.
-            Tuple parentKey = parentPage.getKey(indexInParentPage);
 
             // We don't care about the key returned by movePointersRight(),
             // since we are deleting the parent key anyway.
-            page.movePointersRight(rightSibling, page.getNumPointers(), parentKey);
+            page.movePointersRight(rightSibling, page.getNumPointers(), rightParentKey);
 
             logger.debug(String.format("After coalesce-right, page has %d " +
                     "entries and right sibling has %d pointers.",
@@ -494,6 +512,9 @@ public class InnerPageOperations {
                 // There is no left sibling.  Use the right sibling.
                 adjPage = rightSibling;
             }
+
+            // We have determined earlier that we have at least 1 sibling.
+            assert adjPage != null;
 
             PageTuple parentKey;
 
@@ -542,13 +563,14 @@ public class InnerPageOperations {
                     "%d from %s sibling page %d", entriesToMove, pageNo,
                     (adjPage == leftSibling ? "left" : "right"), adjPage.getPageNo()));
 
+            // We have to update the parent key since we shifted pointers/keys.
             if (adjPage == leftSibling) {
-                adjPage.movePointersRight(page, entriesToMove, parentKey);
-                parentPage.replaceTuple(indexInParentPage - 1, page.getKey(0));
+                TupleLiteral k = adjPage.movePointersRight(page, entriesToMove, parentKey);
+                parentPage.replaceTuple(indexInParentPage - 1, k);
             }
             else { // adjPage == right sibling
-                adjPage.movePointersLeft(page, entriesToMove, parentKey);
-                parentPage.replaceTuple(indexInParentPage, adjPage.getKey(0));
+                TupleLiteral k = adjPage.movePointersLeft(page, entriesToMove, parentKey);
+                parentPage.replaceTuple(indexInParentPage, k);
             }
         }
     }
@@ -932,11 +954,7 @@ public class InnerPageOperations {
         while (true) {
             // If the key we wanted to move into this page overflows the free
             // space in this page, back it up.
-            // TODO:  IS THIS NECESSARY?
-            if (pageBytesFree < keyBytesMoved + 2 * numRelocated) {
-                numRelocated--;
-                break;
-            }
+            // TODO:  IS THIS NECESSARY? A: No it is not.
 
             // Figure out the index of the key we need the size of, based on the
             // direction we are moving values.  If we are moving values right,
@@ -949,6 +967,13 @@ public class InnerPageOperations {
                 index = numRelocated;
 
             keyBytesMoved += lastKeySize;
+
+            // We can simply do the check here instead.
+            // There is an edge case where the extra 2 bytes causes overflow, and if
+            // we don't break here we'll try to access -1 indexed key.
+            if (pageBytesFree < keyBytesMoved + 2 * numRelocated) {
+                break;
+            }
 
             lastKeySize = adjPage.getKey(index).getSize();
             logger.debug("Key " + index + " is " + lastKeySize + " bytes");
