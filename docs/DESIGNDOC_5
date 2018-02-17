@@ -1,0 +1,277 @@
+CS122 Assignment 5 - B+ Tree Files - Design Document
+====================================================
+
+A:  Logistics
+-------------
+
+A1.  List your team name and the people who worked on this assignment.
+
+     <team name>'); DROP TABLE Teams;--
+
+     Qingzhuo Aw Young <qingzhuo@caltech.edu>
+     Timur Kuzhagaliyev <timbokz@caltech.edu>
+
+A2.  Specify the repository URL, tag name and commit-hash of the Git version
+     you are submitting for your assignment.  (You can list the commit hashes
+     of your repository tags with this command:  git show-ref --tags)
+
+     Repository URL:  git@github.com:veniversum/cs122-db.git
+     Tag name:        <tag>
+     Commit hash:     <hash>
+
+A3.  Specify any late tokens you are applying to this assignment, or
+     "none" if no late tokens.
+
+     None
+
+A4.  Briefly describe what parts of the assignment each teammate focused on.
+
+    Qingzhuo: Implementation, extra credit
+    Timur: Design doc, debugging
+    
+B:  Analysis of Implementation
+------------------------------
+
+Given NanoDB's B+ tree implementation, consider a simple schema where an
+index is built against a single integer column:
+
+     CREATE TABLE t (
+         -- An index is automatically built on the id column by NanoDB.
+         id INTEGER PRIMARY KEY,
+         value VARCHAR(20)
+     );
+
+Answer the following questions.
+
+B1.  What is the total size of the index's search-key for the primary-key
+     index, in bytes?  Break down this size into its individual components;
+     be as detailed as possible.  (You don't need to go lower than the
+     byte-level in your answer, but you should show what each byte is a
+     part of.)
+
+
+     The total size is of the search key in this case is 8 bytes. 4 bytes
+     to represent the `id` integer, 2 bytes to represent the number of the
+     page in the tuple file where the relevant tuple if located, and finally
+     2 bytes to represent the offset of the tuple on that particular page.
+
+
+B2.  What is the maximum number of search-keys that can be stored in leaf
+     nodes of NanoDB's B+ tree implementation?  You should assume a page-
+     size of 8192 bytes.
+
+
+     In the current implementation, meta-data for a leaf page takes up 5
+     bytes. (1B for page type, 2B for next page pointer, 2B for num tuples)
+
+     Assuming page size of 8192 and tuple size of 8 bytes that we've
+     established above, the number of search-keys that leaf page
+     can store is 1023.
+
+
+B3.  What is the maximum number of keys that can be stored in inner nodes
+     of this particular implementation?  (Recall that every key must have
+     a page-pointer on either side of the key.)
+
+
+     We're using 2-byte pointers, and our primary key is an integer which
+     also takes up 4 bytes of space. Assuming page size of 8192 bytes and
+     that meta-data takes up 5 bytes, we get 1364 keys and 1365 pointers.
+
+
+B4.  In this implementation, leaf nodes do not reference the previous
+     leaf, only the next leaf.  When splitting a leaf into two leaves,
+     what is the maximum number of leaf nodes that must be read or written,
+     in order to properly manage the next-leaf pointers?
+
+     If leaves also contained a previous-leaf pointer, what would the
+     answer be instead?
+
+     Make sure to explain your answers.
+
+
+    In the case where we only maintain the next-leaf pointer, to properly
+    manage said pointer when a leaf is split we only need to read the old
+    node, and write to both the old node and the newly created node. This
+    is because we can just copy next-leaf pointer from the old node into
+    the new node, and then make old node's next-leaf point at the new node.
+    (Of course, write/reads to/from parents might also occur, but here they
+    are not related to properly managing next-leaf pointers, so here the
+    final number is just 2).
+
+    When we maintain both the previous-leaf and next-leaf pointers, it
+    becomes a bit more tricky. After performing the initial split, we can
+    just repeat the process described in the paragraph above. Additionally,
+    we also set new node's previous-leaf pointer to the old node. This way,
+    we've only read and written 2 leaf nodes. Now, we also need to update
+    the previous-leaf pointer of whatever leaf node that now appears after
+    the newly created node. We can fetch this node using the next-leaf
+    pointer that is now in the new node, update its previous-leaf pointer,
+    and we're done. Overall, this would require writing to 3 leaf nodes,
+    and reading from one (the old leaf node).
+
+    (Aside: A similar issue is related to our extra credit task)
+
+
+
+B5.  In this implementation, nodes do not store a page-pointer to their
+     parent node.  This makes the update process somewhat complicated, as
+     we must save the sequence of page-numbers we traverse as we navigate
+     from root to leaf.  If a node must be split, or if entries are to be
+     relocated from a node to its siblings, the node’s parent-node must
+     be retrieved, and the parent’s contents must be scanned to determine
+     the node’s sibling(s).
+
+     Consider an alternate B+ tree implementation in which every node
+     stores a page-pointer to the node’s parent.  In the case of splitting
+     an inner node, what performance-related differences are there between
+     this alternate representation and the given implementation, where
+     nodes do not record their parents?  Which one would you recommend?
+     Justify your answer.
+
+
+    In our implementation, whenever we need to split a node, we can lookup
+    the parent efficiently using the traversed "path" to the current node.
+    When we split up a node, we don't need to perform any operations on the
+    lower levels of the tree. So if the current split will trigger multiple
+    splits on above levels, we can just keep going upwards "forgetting" about
+    the lower levels.
+
+    In the alternate implementation, when we split a node, we don't have the
+    overhead of saving the sequence of page-numbers we traverse but now we need
+    to update the `parent` pointer of approx. n/2 nodes (former children of the
+    node that we have just split, which ended up in the newly created node).
+    Now, for every single split that we trigger in levels above the initial node,
+    we will have to update ~n/2 parent pointers in the level below the one where
+    the split occurs.
+
+    We would recommend our implementation over the alternate implementation,
+    because for large n, the overhead and complexity of saving the path to the
+    current node is negligible compared to n/2 pointer updates we'd have to do
+    for each split in the alternate implementation.
+
+
+E:  Extra Credit [OPTIONAL]
+---------------------------
+
+If you implemented any extra-credit tasks for this assignment, describe
+them here.  The description should be like this, with stuff in "<>" replaced.
+(The value i starts at 1 and increments...)
+
+E1:  Fixing bugs to make testBTreeTableMultiLevelInsertDelete work.
+
+     There are multiple bugs that cause this test to fail:
+
+     1. In InnerPageOperations#deletePointer(), in the redistribution
+        case (if both coalescing options are not feasible), the first key
+        of the right page in the pair was used as parent key. This results
+        in mangling of the inner tree structure (specifically parent page).
+        Instead, use the return value of movePointersRight/Left instead to
+        determine new parent key value.
+
+     2. Checks that the node returned in get<Left/Right>Sibling share the
+        same immediate parent were not implemented. As a result, if entries
+        were redistributed between them, we can't update the parent key
+        properly since the immediate parent isn't shared. There might be a
+        way to propagate the parent key change all the way up to a common
+        ancestor, but that's too complicated. Instead we just checked that
+        the immediate parent constraint is satisfied as a TODO suggests.
+
+     3. In InnerPageOperations#deletePointer(), for the coalescing cases,
+        the if condition guard does not include the parent key in page
+        free space checks. Recall that the parent key is used to bridge
+        the 2 boundary pointers. This could result in writing out of page
+        bounds, which causes array index out of bounds exception in
+        System.arrayCopy() of the backing byte array. We solve this by
+        including the parent key size in the size check.
+
+     4. In leafPageOperations#deleteTuple, in the redistribution case,
+        innerPage.replaceTuple() is used to update the parent key. This
+        fails with an exception when the new key is larger than the
+        parent key it's supposed to replace. innerPageOps.replaceTuple()
+        has to be used instead which will properly split the parent page
+        before updating the parent key. This is probably a result of having
+        extremely similarly named method/classes that exhibit different
+        behaviors, and handle edge cases differently. See section F5.
+
+     5. In InnerPageOperations#tryNonLeafRelocateToFill(), the break
+        condition of the while loop is placed in a rather odd location
+        at the start rather than at the end. This causes an edge case
+        where the last pointer in the page (or first, depending on
+        your perspective) which is 2 bytes, causes the overflow. This is an
+        exceptionally rare edge case, since usually both page and key tuple
+        sizes are much larger than 2 bytes. However, this will cause another
+        array index out of bounds exception, as the next key is updated at
+        the end of the while loop (which will be index -1). Instead, we
+        perform the break condition check on size immediately before the new
+        key is retrieved.
+
+     6. When the left most leaf page within it's immediate parent is deleted
+        or coalesced into it's neighbor, the left sibling's nextPageNo
+        pointer will not be updated. This is because getLeftSibling does
+        not look outside the immediate parent (but getRightSibling does,
+        which is unexpected, D'oh!). We still need to update the left cousin
+        in order to maintain the linked list of leaf pages. If not, we'll find
+        the old pointer pointing to an empty page after it's released. This is
+        implemented in LeafPage#getLeftCousin(), and it works by traversing
+        up the pagePath until it hits a page with a left sibling, then traverse
+        down again by following the right-most pointer. In the case where the
+        leaf page has a left sibling, it'll simply return the page number
+        of the left sibling. We use the term cousin rather loosely here,
+        it just refers to a leaf page before the current page in the linked
+        list-esque structure of leaf pages.
+
+     The squashed commit 50c40c504657b4d9ce84f225eee17f80a86bcf1b contains
+     all the changes described above.
+
+     Result is that testBTreeTableMultiLevelInsertDelete passes.
+
+F:  Feedback [OPTIONAL]
+-----------------------
+
+WE NEED YOUR FEEDBACK!  Thoughtful and constructive input will help us to
+improve future versions of the course.  These questions are OPTIONAL, and
+they obviously won't affect your grade in any way (including if you hate
+everything about the assignment and databases in general, or Donnie and/or
+the TAs in particular).  Feel free to answer as many or as few of them as
+you wish.
+
+F1.  How many hours total did your team spend on this assignment?
+     (That is, the sum of each teammate's time spent on the assignment.)
+
+     3 hours for base, 10 hours for extra credit
+
+F2.  What parts of the assignment were most time-consuming?  Why?
+
+     Extra credit took 3-4x the amount of time it took for the rest of the
+     assignment.. but it was fun
+
+F3.  Did you find any parts of the assignment particularly instructive?
+     Correspondingly, did any parts feel like unnecessary busy-work?
+
+F4.  Did you particularly enjoy any parts of the assignment?  Were there
+     any parts that you particularly disliked?
+
+F5.  Do you have any suggestions for how future versions of the
+     assignment can be improved?
+
+     Methods with the same name are confusing. InnerPage.replaceTuple vs
+     InnerPageOps.replaceTuple for example (they do different things, and
+     handle exceptions differently).
+
+     For LeafPages, getLeftSibling doesn't do the exact opposite as
+     getRightSibling. getLeftSibling doesn't go past immediate parent,
+     getRightSibling does. getRightSibling doesn't in InnerPage.
+     Intricacies like this can easily lead to bugs, especially when
+     you'd expect the same behavior just from the docstrings.
+
+     Some methods like deleteTuple or deletePointer are over 400-500
+     lines long, and have many levels of nesting. Consider refactoring.
+
+     Also, the logic for deleting/inserting (especially handling rebalacing)
+     seems to be much more interesting than moving pointers/tuples to
+     left/right nodes. I wouldn't understand how those worked and all the
+     edge cases if we didn't do the extra credit portion. It might be
+     more instructive if the implementation for helper methods (moving stuff
+     left or right) was provided, and the task was to implement adding or
+     deletion.
