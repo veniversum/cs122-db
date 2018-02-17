@@ -16,8 +16,8 @@ A2.  Specify the repository URL, tag name and commit-hash of the Git version
      of your repository tags with this command:  git show-ref --tags)
 
      Repository URL:  git@github.com:veniversum/cs122-db.git
-     Tag name:        <tag>
-     Commit hash:     <hash>
+     Tag name:        v5.0
+     Commit hash:     c9e065afa948f77966d7bcd4428da591ed42857a
 
 A3.  Specify any late tokens you are applying to this assignment, or
      "none" if no late tokens.
@@ -28,7 +28,7 @@ A4.  Briefly describe what parts of the assignment each teammate focused on.
 
     Qingzhuo: Implementation, extra credit
     Timur: Design doc, debugging
-    
+
 B:  Analysis of Implementation
 ------------------------------
 
