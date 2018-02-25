@@ -245,9 +245,9 @@ public class SelectivityEstimator {
                     selectivity = estimateInValOperSelectiviy(inValOp,
                             exprSchema, stats);
                 } else {
-                    selectivity = (float) terms.stream()
-                            .mapToDouble(e -> estimateSelectivity(e, exprSchema, stats))
-                            .sum();
+                    selectivity = 1f - (float) terms.stream()
+                            .mapToDouble(e -> 1f - estimateSelectivity(e, exprSchema, stats))
+                            .reduce(1, (a, b) -> a * b);
                 }
                 break;
 
