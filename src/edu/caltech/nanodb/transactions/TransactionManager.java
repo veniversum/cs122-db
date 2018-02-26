@@ -17,6 +17,8 @@ import org.apache.log4j.Logger;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -399,8 +401,6 @@ public class TransactionManager implements BufferManagerObserver {
      */
     @Override
     public void beforeWriteDirtyPages(List<DBPage> pages) throws IOException {
-        // TODO:  IMPLEMENT
-        //
         // This implementation must enforce the write-ahead logging rule (aka
         // the WAL rule) by ensuring that the write-ahead log reflects all
         // changes to all of the specified pages, on disk, before any of these
@@ -422,6 +422,14 @@ public class TransactionManager implements BufferManagerObserver {
         //
         // Finally, you can use the forceWAL(LogSequenceNumber) function to
         // force the WAL to be written out to the specified LSN.
+
+        // TODO: Sanity check to make sure LSN exists per page?
+        final LogSequenceNumber maxLsn = pages.stream()
+                .filter(DBPage::isDirty)
+                .map(DBPage::getPageLSN)
+                .filter(Objects::nonNull)
+                .max(LogSequenceNumber::compareTo).orElse(null);
+        forceWAL(maxLsn);
     }
 
 
@@ -447,7 +455,7 @@ public class TransactionManager implements BufferManagerObserver {
         //
 
         // There is nothing to do if the LSN given is lower than what's already on disk
-        if (txnStateNextLSN.compareTo(lsn) > 0) return;
+        if (lsn == null || txnStateNextLSN.compareTo(lsn) > 0) return;
 
         // Flush the buffer and sync to disk the WAL from the last synced LSN to the forced LSN.
         walManager.flushWAL(txnStateNextLSN, lsn);
