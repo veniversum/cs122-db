@@ -1,33 +1,23 @@
 package edu.caltech.nanodb.transactions;
 
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.client.SessionState;
-
 import edu.caltech.nanodb.expressions.TypeCastException;
-
 import edu.caltech.nanodb.server.NanoDBServer;
 import edu.caltech.nanodb.server.properties.PropertyHandler;
 import edu.caltech.nanodb.server.properties.ReadOnlyPropertyException;
 import edu.caltech.nanodb.server.properties.UnrecognizedPropertyException;
-
-import edu.caltech.nanodb.storage.BufferManager;
-import edu.caltech.nanodb.storage.BufferManagerObserver;
-import edu.caltech.nanodb.storage.DBFile;
-import edu.caltech.nanodb.storage.DBFileType;
-import edu.caltech.nanodb.storage.DBPage;
-import edu.caltech.nanodb.storage.StorageManager;
-
+import edu.caltech.nanodb.storage.*;
 import edu.caltech.nanodb.storage.writeahead.LogSequenceNumber;
 import edu.caltech.nanodb.storage.writeahead.RecoveryInfo;
 import edu.caltech.nanodb.storage.writeahead.WALManager;
 import edu.caltech.nanodb.storage.writeahead.WALRecordType;
+import org.apache.log4j.Logger;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -455,8 +445,20 @@ public class TransactionManager implements BufferManagerObserver {
         // current LSN *and* its record size; otherwise we lose the last log
         // record in the WAL file.  You can use this static method:
         //
-        // int lastPosition = lsn.getFileOffset() + lsn.getRecordSize();
-        // WALManager.computeNextLSN(lsn.getLogFileNo(), lastPosition);
+
+        // There is nothing to do if the LSN given is lower than what's already on disk
+        if (txnStateNextLSN.compareTo(lsn) > 0) return;
+
+        // Flush the buffer and sync to disk the WAL from the last synced LSN to the forced LSN.
+        walManager.flushWAL(txnStateNextLSN, lsn);
+        int lastPosition = lsn.getFileOffset() + lsn.getRecordSize();
+        txnStateNextLSN = WALManager.computeNextLSN(lsn.getLogFileNo(), lastPosition);
+
+        // If we have reached this point, update the txnstate.dat atomically to actually
+        // commit the WAL. If we don't reach this point, whatever that was written to disk
+        // will be ignored, since nextLSN still has the old value. This ensures atomicity of
+        // the forceWAL() method.
+        storeTxnStateToFile();
     }
 
 

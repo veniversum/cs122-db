@@ -1,24 +1,17 @@
 package edu.caltech.nanodb.storage.writeahead;
 
 
+import edu.caltech.nanodb.client.SessionState;
+import edu.caltech.nanodb.storage.*;
+import edu.caltech.nanodb.transactions.TransactionManager;
+import edu.caltech.nanodb.transactions.TransactionState;
+import edu.caltech.nanodb.util.ArrayUtil;
+import org.apache.log4j.Logger;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-
-import org.apache.log4j.Logger;
-
-import edu.caltech.nanodb.client.SessionState;
-import edu.caltech.nanodb.storage.BufferManager;
-import edu.caltech.nanodb.storage.DBFile;
-import edu.caltech.nanodb.storage.DBFileReader;
-import edu.caltech.nanodb.storage.DBFileType;
-import edu.caltech.nanodb.storage.DBFileWriter;
-import edu.caltech.nanodb.storage.DBPage;
-import edu.caltech.nanodb.storage.StorageManager;
-import edu.caltech.nanodb.transactions.TransactionManager;
-import edu.caltech.nanodb.transactions.TransactionState;
-import edu.caltech.nanodb.util.ArrayUtil;
 
 
 /**
@@ -1101,5 +1094,32 @@ public class WALManager {
         writeTxnRecord(WALRecordType.ABORT_TXN);
         logger.info(String.format("Transaction %d:  Rollback complete.",
             transactionID));
+    }
+
+    public void flushWAL(LogSequenceNumber lsnStart, LogSequenceNumber lsnEnd) throws IOException {
+        int startFileNo = lsnStart.getLogFileNo();
+        int endFileNo = lsnEnd.getLogFileNo();
+
+        for (int fileNo = startFileNo; fileNo <= endFileNo; fileNo++) {
+            String filename = getWALFileName(fileNo);
+
+            DBFile walFile = bufferManager.getFile(filename);
+
+            if (walFile != null) {
+                int startOffset = 0;
+                int endOffset = Integer.MAX_VALUE;
+                if (fileNo == startFileNo) {
+                    startOffset = lsnStart.getFileOffset();
+                }
+                if (fileNo == endFileNo) {
+                    endOffset = lsnEnd.getFileOffset() + lsnEnd.getRecordSize();
+                }
+                bufferManager.writeDBFile(walFile,
+                        walFile.offsetToPageNo(startOffset),
+                        walFile.offsetToPageNo(endOffset),
+                        true);
+            }
+
+        }
     }
 }

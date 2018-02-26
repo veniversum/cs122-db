@@ -155,6 +155,19 @@ public class DBFile {
     }
 
 
+    /**
+     * Given the base-2 logarithm of a page size, this method returns the actual
+     * page size.  For example, <tt>decodePageSize(9)</tt> will return 512.
+     *
+     * @param offset the encoded page-size
+     * @return the actual page size, computed as 2<sup><em>encoded</em></sup>.
+     * @throws IllegalArgumentException if the resulting page-size is invalid.
+     */
+    public int offsetToPageNo(int offset) {
+        return offset / pageSize;
+    }
+
+
 
     /**
      * Constructs a new object from the specified information, and opens the
