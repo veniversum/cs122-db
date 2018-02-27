@@ -447,8 +447,6 @@ public class TransactionManager implements BufferManagerObserver {
      *         going to be broken.
      */
     public void forceWAL(LogSequenceNumber lsn) throws IOException {
-        // TODO:  IMPLEMENT
-        //
         // Note that the "next LSN" value must be determined from both the
         // current LSN *and* its record size; otherwise we lose the last log
         // record in the WAL file.  You can use this static method:
@@ -458,14 +456,15 @@ public class TransactionManager implements BufferManagerObserver {
         if (lsn == null || txnStateNextLSN.compareTo(lsn) > 0) return;
 
         // Flush the buffer and sync to disk the WAL from the last synced LSN to the forced LSN.
+        // Delegate the actual WAL operation to the WALmanager.
         walManager.flushWAL(txnStateNextLSN, lsn);
-        int lastPosition = lsn.getFileOffset() + lsn.getRecordSize();
-        txnStateNextLSN = WALManager.computeNextLSN(lsn.getLogFileNo(), lastPosition);
 
         // If we have reached this point, update the txnstate.dat atomically to actually
         // commit the WAL. If we don't reach this point, whatever that was written to disk
         // will be ignored, since nextLSN still has the old value. This ensures atomicity of
         // the forceWAL() method.
+        int lastPosition = lsn.getFileOffset() + lsn.getRecordSize();
+        txnStateNextLSN = WALManager.computeNextLSN(lsn.getLogFileNo(), lastPosition);
         storeTxnStateToFile();
     }
 
