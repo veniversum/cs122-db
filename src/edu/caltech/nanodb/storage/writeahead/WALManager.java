@@ -1074,19 +1074,42 @@ public class WALManager {
                 "Undoing WAL record at %s.  Type = %s, TxnID = %d",
                 lsn, type, transactionID));
 
-            // TODO:  IMPLEMENT THE REST
+            if (type == WALRecordType.START_TXN) {
+                // Reached start of transaction, done!
+                break;
+            } else if (type != WALRecordType.UPDATE_PAGE) {
+                throw new WALFileException("Encountered an invalid record " +
+                        "type during transaction rollback!");
+            }
+
+            // Read relevant data from file
+            short prevLsnWalFileNo = walReader.readShort();
+            int prevLsnWalFileOffset = walReader.readInt();
+            String filename = walReader.readVarString255();
+            short pageNo = walReader.readShort();
+            short numSegments = walReader.readShort();
+
+            // Rollback changes
+            DBFile dbFile = storageManager.openDBFile(filename);
+            DBPage page = storageManager.loadDBPage(dbFile, pageNo);
+            byte[] changes =
+                    applyUndoAndGenRedoOnlyData(walReader, page, numSegments);
+
+            // TODO: Use `writeTxnRecord(type)` somewhere?
+
+            writeRedoOnlyUpdatePageRecord(page, numSegments, changes);
+
+            // Prepare previous LSN
+            lsn = new LogSequenceNumber(prevLsnWalFileNo, prevLsnWalFileOffset);
+
+            // TODO:  Check implementation
             //
             //        Use logging statements liberally to help verify and
             //        debug your work.
             //
             //        If you encounter invalid WAL contents, throw a
             //        WALFileException to indicate the problem immediately.
-            //
-            // TODO:  SET lsn TO PREVIOUS LSN TO WALK BACKWARD THROUGH WAL.
 
-            // TODO:  This break is just here so the code will compile; when
-            //        you provide your own implementation, get rid of it!
-            break;
         }
 
         // All done rolling back the transaction!  Record that it was aborted
