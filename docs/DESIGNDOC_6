@@ -116,12 +116,40 @@ C3:  Currently, the "firstLSN" value is only moved forward when recovery
      firstLSN during normal operation?  What constraints must be enforced to
      ensure the database continues working properly?  Explain your answers.
 
+    Any strategy for moving "firstLSN" forward during normal operation will
+    need to ensure that guarantees described in C2 still apply. As one
+    potential strategy, after a transaction is committed or aborted, we can
+    perform a check to see if there are any other transactions carried out in
+    parallel. If there are none, we can forceWAL() for the last LSN and then
+    sync all of the table files. If these operations are completed
+    successfully, we can update "firstLSN". This will ensure the first
+    guarantee about data on the disk reflecting all of the changes in WAL logs.
+
+    At the start of this process, we made sure that there are no active
+    transactions. To make sure no transactions are started while we're flushing
+    data to the disk, we don't allow any other updates or writes. This way will
+    cause a small performance decrease while this process is carried out but
+    will ensure the second guarantee still holds.
+
+    This is somewhat similar to non-fuzzy checkpointing, but we also require to
+    all transactions to be completed.
+
 C4:  The txnstate.dat file's "firstLSN" value is somewhat similar to a
      checkpoint / fuzzy-checkpoint, but it is not quite the same.  Describe
      the differences between what NanoDB provides, and how checkpoints
      generally work, focusing on what constraints must be enforced during the
      checkpointing operation, vs. the constraints that NanoDB must enforce
      with firstLSN.
+
+    A non-fuzzy checkpoint is similar to our "firstLSN" in a sense that they
+    both guarantee that data on the disk reflects all of the changes recorded
+    in the WAL up until that checkpoint/"firstLSN", but our "firstLSN" also
+    guarantees/requires that there are no incomplete transactions, while
+    checkpoints keep a record of active transactions at that checkpoint.
+
+    Same applies to fuzzy checkpoints, except they don't even guarantee that
+    the data reflected in the WAL up until that checkpoint is actually synced
+    in the table files on the disk.
 
 D:  Testing
 -----------
