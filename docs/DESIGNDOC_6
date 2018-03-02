@@ -1,0 +1,194 @@
+CS122 Assignment 6 - Write-Ahead Logging - Design Document
+==========================================================
+
+A:  Logistics
+-------------
+
+A1.  List your team name and the people who worked on this assignment.
+
+     <team name>'); DROP TABLE Teams;--
+
+     Qingzhuo Aw Young <qingzhuo@caltech.edu>
+     Timur Kuzhagaliyev <timbokz@caltech.edu>
+
+A2.  Specify the repository URL, tag name and commit-hash of the Git version
+     you are submitting for your assignment.  (You can list the commit hashes
+     of your repository tags with this command:  git show-ref --tags)
+
+     Repository URL:  git@github.com:veniversum/cs122-db.git
+     Tag name:        <tag>
+     Commit hash:     <hash>
+
+A3.  Specify any late tokens you are applying to this assignment, or
+     "none" if no late tokens.
+
+    None
+
+A4.  Briefly describe what parts of the assignment each teammate focused on.
+
+    Qingzhuo: Adding WAL to heap tuple classes, forceWAL(), enforcing
+              write-ahead logging rule
+    Timur: Transaction rollback, redo/undo on recovery, WAL tests
+
+B:  Write-Ahead Logging
+-----------------------
+
+B1.  One of your tasks this week was to implement the TransactionManager's
+     forceWAL(LogSequenceNumber) method.  This method must perform its
+     operation atomically and durably, so that if a crash occurs during this
+     method, the WAL will always be a reliable record of database operations.
+     How did you ensure that your implementation satisfies these constraints?
+     Justify your approach.  (You can assume that the underlying OS provides
+     an atomic file-sync operation, and that writing a single sector will
+     also be atomic with the obvious caveat that the written sector may still
+     be buffered until a sync occurs.)
+     
+    The transaction state file (txnstate.dat) always holds the pointer to the
+    end of the WAL file (txnStateNextLSN), and it can be written to atomically.
+     
+    Thus we use transaction state file as the source of truth for where the WAL
+    ends. This means that we can sync the portion of the WAL requested to disk,
+    without actualy affecting the WAL. If the write fails, JVM crashes, or system
+    halts before/during/after this stage, there might be some garbage data after
+    the end of the WAL, the WAL remains consistent.
+    
+    Only when the entire portion of the WAL requested has been synced to disk
+    successfully do we update the end pointer for the WAL in the transaction
+    state file. This acts as an atomic 'commit' for the changes we just
+    made the the WAL file.
+     
+B2:  Another task was to implement the beforeWriteDirtyPages() method on the
+     TransactionManager.  Your implementation must ensure that the write-ahead
+     logging rule is always followed.  What steps do you take to ensure this
+     will always happen?  Describe your method's approach.
+
+    We iterate through all of the dirty pages and collect all LSNs from the
+    relevant pages. Then, we figure out the maximum LSN and call forceWAL()
+    on it. This way we ensure that all of the WAL records relevant to the
+    contents of dirty pages are flushed out, so regardless of what page will
+    be picked for eviction, WAL record for this page would already be on disk.
+
+B3:  In your current implementation, some pages may not have corresponding
+     LSNs associated with them, because they are not logged in the write-ahead
+     log.  Enumerate all file types that will have pages not logged in the
+     WAL.
+
+    File types that are not logged in WAL:
+        - BYTE_FSM_FILE: Our free space map file
+        - BTREE_TUPLE_FILE: B-tree+ tuple files
+        - TXNSTATE_FILE: txnstate.dat
+        - WRITE_AHEAD_LOG_FILE: WAL log files
+
+C:  The txnstate.dat File
+-------------------------
+
+C1.  The txnstate.dat file records the next transaction ID that the database
+     should use when it is restarted.  Why is it important for this to be
+     stored and used by the database when it is restarted?
+
+    `txnstate.dat` holds a pointer to the end of WAL file and a "firstLSN"
+    value, both of which are necessary for efficientrecovery to be possible.
+    
+    As discussed in C2, several guarantees are made about "firstLSN" the value
+    which allow us to ignore any records before it. "txnStateNextLSN" 
+
+    // TODO: Complete this
+
+C2:  The txnstate.dat file records a "firstLSN" value, which is where recovery
+     processing starts from.  What guarantees are made about this firstLSN
+     value?  Given these guarantees, will redo processing need any records
+     before the firstLSN value?  Will undo processing need any records before
+     the firstLSN value?  Justify your answers.
+
+    One guarantee is that the data that is currently on the disk reflects all
+    of the changes prior to "firstLSN". Since this is guaranteed, redo
+    processing can just ignore everything prior to "firstLSN". If we wouldn't
+    ignore earlier records, we'd just be performing redundant operations of
+    writing changes that were already persisted on the disk.
+
+    The other guarantee is that there are no incomplete transactions at the
+    "firstLSN" point in the log. Considering our undo processing is concerned
+    with undoing incomplete transactions, this obviously means that it will
+    not be necessary to look at records before "firstLSN" point.
+
+C3:  Currently, the "firstLSN" value is only moved forward when recovery
+     processing is completed.  Can you describe a strategy for moving forward
+     firstLSN during normal operation?  What constraints must be enforced to
+     ensure the database continues working properly?  Explain your answers.
+
+C4:  The txnstate.dat file's "firstLSN" value is somewhat similar to a
+     checkpoint / fuzzy-checkpoint, but it is not quite the same.  Describe
+     the differences between what NanoDB provides, and how checkpoints
+     generally work, focusing on what constraints must be enforced during the
+     checkpointing operation, vs. the constraints that NanoDB must enforce
+     with firstLSN.
+
+D:  Testing
+-----------
+
+D1:  Did you run into any fun, surprising or crazy bugs while you were
+     debugging your transaction-processing code?  (It's OK if your answer
+     is "no," although Donnie will be dubious...)
+
+    When we enabled transactions, the test <...> from assignment 1 test
+    suite begun failing, being unable to allocate a buffer of size 4096.
+
+E:  Extra Credit [OPTIONAL]
+---------------------------
+
+If you implemented any extra-credit tasks for this assignment, describe
+them here.  The description should be like this, with stuff in "<>" replaced.
+(The value i starts at 1 and increments...)
+
+E<1>:  Basic tests for transaction commit/rollback
+
+     Wrote tests that test the rollback and commit functionality of single
+     transaction and two consequent transactions.
+
+     - TestSingleDataPageWal # testTransactionCommit:
+         Commits a single transaction
+
+     - TestSingleDataPageWal # testTransactionCommitAfterRestart:
+         Commits a single transaction and restarts the server to make sure
+         that recovery mechanism works correctly when no recovery is required.
+         
+     - TestSingleDataPageWal # testTransactionRollback:
+         Rollbacks a single transaction
+         
+     - TestSingleDataPageWal # testTwoTransactionsCommitCommit:
+         Commits two transactions
+         
+     - TestSingleDataPageWal # testTwoTransactionsCommitAbort:
+         Commits one transaction and rolls back another one
+         
+     - TestSingleDataPageWal # testTwoTransactionsAbortAbort:
+         Rollbacks two consequent commits
+        
+F:  Feedback [OPTIONAL]
+-----------------------
+
+WE NEED YOUR FEEDBACK!  Thoughtful and constructive input will help us to
+improve future versions of the course.  These questions are OPTIONAL, and
+they obviously won't affect your grade in any way (including if you hate
+everything about the assignment and databases in general, or Donnie and/or
+the TAs in particular).  Feel free to answer as many or as few of them as
+you wish.
+
+NOTE:  If you wish to give anonymous feedback, a similar survey will be
+       made available on the Moodle.
+
+F1.  How many hours total did your team spend on this assignment?
+     (That is, the sum of each teammate's time spent on the assignment.)
+    5
+
+F2.  What parts of the assignment were most time-consuming?  Why?
+
+F3.  Did you find any parts of the assignment particularly instructive?
+     Correspondingly, did any parts feel like unnecessary busy-work?
+
+F4.  Did you particularly enjoy any parts of the assignment?  Were there
+     any parts that you particularly disliked?
+
+F5.  Do you have any suggestions for how future versions of the
+     assignment can be improved?
+
