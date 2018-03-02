@@ -86,13 +86,19 @@ C1.  The txnstate.dat file records the next transaction ID that the database
      should use when it is restarted.  Why is it important for this to be
      stored and used by the database when it is restarted?
 
-    `txnstate.dat` holds a pointer to the end of WAL file and a "firstLSN"
-    value, both of which are necessary for efficientrecovery to be possible.
-    
-    As discussed in C2, several guarantees are made about "firstLSN" the value
-    which allow us to ignore any records before it. "txnStateNextLSN" 
+    txnstate.dat holds a pointer to the end of WAL, "txnStateNextLSN", and a
+    "firstLSN" value, both of which are necessary for efficient recovery to be
+    possible. Because of the atomicity of forceWAL() operation described in B1,
+    there are certain guarantees enforced on the versions of these 2 values
+    stored on the disk.
 
-    // TODO: Complete this
+    "firstLSN" helps us improve the performance of recovery by letting us ignore
+     all of the records before that point, as discussed in C2. This is useful
+     for redo and undo processing.
+
+     "txnStateNextLSN" points to the end of WAL, any data after this point might
+     be corrupted, so it's important to use it as an upper bound in our redo and
+     undo processing as the last valid WAL record.
 
 C2:  The txnstate.dat file records a "firstLSN" value, which is where recovery
      processing starts from.  What guarantees are made about this firstLSN
