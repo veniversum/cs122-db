@@ -576,7 +576,7 @@ setup_testLimitOffset = \
     INSERT INTO test_lo_t1 VALUES (7); \
 
 #============================================================================
-# Data for tests exercising LIMIT and OFFSET clauses
+# Data for costing tests
 
 setup_testCostingOperator = \
   CREATE TABLE test_inval_t1 ( a INTEGER); \
@@ -607,3 +607,11 @@ setup_testCostingOperator = \
   INSERT INTO test_analyze_t4 VALUES (null, 10); \
   INSERT INTO test_analyze_t4 VALUES (null, 11); \
   INSERT INTO test_analyze_t4 VALUES (null, 12); \
+
+#============================================================================
+# Data for costing testsWAL
+
+setup_testWal = \
+  CREATE TABLE test_wal_t1 (a INTEGER, b INTEGER); \
+  INSERT INTO test_wal_t1 VALUES (1, 0); \
+  INSERT INTO test_wal_t1 VALUES (2, 0); \

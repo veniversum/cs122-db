@@ -5,11 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.ObjectUtils;
@@ -56,7 +52,7 @@ public class SqlTestCase {
     private File testBaseDir;
 
 
-    private String setupSQLPropName;
+    protected String setupSQLPropName;
 
 
 
@@ -72,6 +68,17 @@ public class SqlTestCase {
 
     @BeforeClass
     public void beforeClass() throws Exception {
+        // Prepare directory for test datafiles
+        setupTestingDirectory();
+
+        server = new NanoDBServer();
+        server.startup();
+
+        // Run the initialization SQL, if it has been specified.
+        prepareSqlProp();
+    }
+
+    protected void setupTestingDirectory() throws Exception {
         // Set up a separate testing data-directory so that we don't clobber
         // any existing data.
         testBaseDir = new File("test_datafiles");
@@ -83,30 +90,26 @@ public class SqlTestCase {
         // Make sure the database server uses the testing base-directory, not
         // the normal base-directory.
         System.setProperty(StorageManager.PROP_BASEDIR,
-            testBaseDir.getAbsolutePath());
+                testBaseDir.getAbsolutePath());
+    }
 
-        server = new NanoDBServer();
-        server.startup();
-
-        // Run the initialization SQL, if it has been specified.
-        if (setupSQLPropName != null) {
-            loadTestSQLProperties();
-            String setupSQL = testSQL.getProperty(setupSQLPropName);
-            if (setupSQL == null) {
-                throw new IOException("Property " + setupSQLPropName +
+    protected void prepareSqlProp() throws Exception {
+        if (setupSQLPropName == null) return;
+        loadTestSQLProperties();
+        String setupSQL = testSQL.getProperty(setupSQLPropName);
+        if (setupSQL == null) {
+            throw new IOException("Property " + setupSQLPropName +
                     " not specified in " + TEST_SQL_PROPS);
-            }
+        }
 
-            List<CommandResult> results = server.doCommands(setupSQL, false);
-            for (CommandResult result : results) {
-                if (result.failed()) {
-                    throw new Exception("Setup:  command failed with error:  " +
+        List<CommandResult> results = server.doCommands(setupSQL, false);
+        for (CommandResult result : results) {
+            if (result.failed()) {
+                throw new Exception("Setup:  command failed with error:  " +
                         result.getFailure(), result.getFailure());
-                }
             }
         }
     }
-
 
     private void loadTestSQLProperties() throws IOException {
         InputStream is =
@@ -119,23 +122,47 @@ public class SqlTestCase {
         is.close();
     }
 
-
-
     @AfterClass
     public void afterClass() {
         // Shut down the database server and clean up the testing base-directory.
         server.shutdown();
 
+        cleanTestingDirectory();
+    }
+
+    protected void cleanTestingDirectory() {
         // Try to clean up the testing directory.
         try {
             FileUtils.cleanDirectory(testBaseDir);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             System.out.println("Couldn't clean directory " + testBaseDir);
             e.printStackTrace();
         }
     }
 
+    public void restartServer() throws Exception {
+        server.shutdown();
+        server = new NanoDBServer();
+        server.startup();
+    }
+
+    public CommandResult tryMultipleCommands(String[] commands,
+                                             boolean includeTuples)
+            throws Exception {
+        int count = commands.length;
+        assert count > 0;
+        CommandResult lastResult = null;
+        for (String command : commands) {
+            count--;
+            if (count == 0) {
+                lastResult = tryDoCommand(command, includeTuples);
+            } else {
+                tryDoCommand(command);
+            }
+
+        }
+        return lastResult;
+    }
 
     public CommandResult tryDoCommand(String command, boolean includeTuples)
         throws Exception {
