@@ -140,6 +140,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner one
                     first = new HeapFilePageTuple(schema, dbPage, iSlot, offset);
                     break page_scan;
                 }
+                dbPage.unpin();
             }
         }
         catch (EOFException e) {
@@ -274,6 +275,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
                 break;
             }
         }
+        dbPage.unpin();
 
         return nextTup;
     }
@@ -380,7 +382,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
         DataPage.sanityCheck(dbPage);
         storageManager.logDBPageWrite(dbPage);
         fsmFile.updateFreeSpace(pageNo, DataPage.getFreeSpaceInPage(dbPage));
-
+        dbPage.unpin();
         return pageTup;
     }
 
