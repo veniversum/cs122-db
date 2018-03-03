@@ -16,13 +16,13 @@ A2.  Specify the repository URL, tag name and commit-hash of the Git version
      of your repository tags with this command:  git show-ref --tags)
 
      Repository URL:  git@github.com:veniversum/cs122-db.git
-     Tag name:        v6.0
-     Commit hash:     d35c878e246e5dd8dd2615faf90789c35a8f9037
+     Tag name:        v6.1
+     Commit hash:     d87cfcb975bdf9e438c88f157a01def0c2d3ae77
 
 A3.  Specify any late tokens you are applying to this assignment, or
      "none" if no late tokens.
 
-    None
+    1 token
 
 A4.  Briefly describe what parts of the assignment each teammate focused on.
 
@@ -164,8 +164,12 @@ D1:  Did you run into any fun, surprising or crazy bugs while you were
      debugging your transaction-processing code?  (It's OK if your answer
      is "no," although Donnie will be dubious...)
 
-    When we enabled transactions, the test <...> from assignment 1 test
-    suite begun failing, being unable to allocate a buffer of size 4096.
+    When we enabled transactions, the test <...> from assignment 1 test suite
+    begun failing, being unable to allocate a buffer of size 4096, see:
+        https://piazza.com/class/jc8a2ohck6y5px?cid=88
+
+    In the end, we ended unpinning some pages in our HeapTupleFile
+    implementation ( commit d87cfcb975bdf9e438c88f157a01def0c2d3ae77 ).
 
 E:  Extra Credit [OPTIONAL]
 ---------------------------
@@ -213,7 +217,7 @@ NOTE:  If you wish to give anonymous feedback, a similar survey will be
 
 F1.  How many hours total did your team spend on this assignment?
      (That is, the sum of each teammate's time spent on the assignment.)
-    5
+    7
 
 F2.  What parts of the assignment were most time-consuming?  Why?
 
