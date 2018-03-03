@@ -122,7 +122,7 @@ public abstract class PageTuple implements Tuple {
      * @return {@code true} since page tuples are backed by disk pages.
      */
     public boolean isDiskBacked() {
-        return false;
+        return true;
     }
 
 

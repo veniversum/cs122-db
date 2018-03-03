@@ -111,13 +111,13 @@ public interface TableManager {
 
 
     /**
-     * Saves table info for all open tables.
+     * Saves table fsm for all open tables.
      *
-     * See {@link TableManager#saveTableInfo(TableInfo)}.
+     * See {@link IndexedTableManager#saveTableFSM(TableInfo)}.
      *
      * @throws IOException if an IO error occurs while saving.
      */
-    void saveAllTablesInfo() throws IOException;
+    void saveAllTablesFSM() throws IOException;
 
 
     /**

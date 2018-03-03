@@ -1,21 +1,23 @@
 package edu.caltech.nanodb.storage;
 
 
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-
-import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
-import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
-import org.apache.log4j.Logger;
-
 import edu.caltech.nanodb.commands.CommandProperties;
 import edu.caltech.nanodb.indexes.IndexManager;
 import edu.caltech.nanodb.relations.ForeignKeyColumnRefs;
 import edu.caltech.nanodb.relations.KeyColumnRefs;
 import edu.caltech.nanodb.relations.TableInfo;
 import edu.caltech.nanodb.relations.TableSchema;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFile;
+import edu.caltech.nanodb.storage.freespacemap.FreeSpaceMapFileManager;
+import org.apache.log4j.Logger;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 /**
@@ -164,6 +166,10 @@ public class IndexedTableManager implements TableManager {
         TupleFileManager manager = tupleFile.getManager();
         manager.saveMetadata(tupleFile);
 
+        saveTableFSM(tableInfo);
+    }
+
+    private void saveTableFSM(TableInfo tableInfo) throws IOException {
         FreeSpaceMapFile freeSpaceMapFile = tableInfo.getFreeSpaceMapFile();
         FreeSpaceMapFileManager freeSpaceMapFileManager = freeSpaceMapFile.getFsmFileManager();
         freeSpaceMapFileManager.saveFreeSpaceMapFile(freeSpaceMapFile);
@@ -171,9 +177,9 @@ public class IndexedTableManager implements TableManager {
 
 
     @Override
-    public void saveAllTablesInfo() throws IOException {
+    public void saveAllTablesFSM() throws IOException {
         for (TableInfo tableInfo : openTables.values()) {
-            saveTableInfo(tableInfo);
+            saveTableFSM(tableInfo);
         }
     }
 
@@ -200,16 +206,16 @@ public class IndexedTableManager implements TableManager {
             try {
                 fsmFile = storageManager.openFreeSpaceMapFile(freeSpaceMapFileName);
                 if (!fsmFile.checkIntegrity()) {
-                    logger.debug("Free space map for table " + tableName + " has bad checksum - rebuilding.");
+                    logger.warn("Free space map for table " + tableName + " has bad checksum - rebuilding.");
                     fsmFile.rebuild(tupleFile);
                 }
             } catch (IllegalStateException ise) {
-                logger.debug("Free space map for table " + tableName + " is corrupted - creating new one.");
+                logger.warn("Free space map for table " + tableName + " is corrupted - creating new one.");
                 prepareNewFsmFile = true;
                 storageManager.getFileManager().deleteDBFile(freeSpaceMapFileName);
             }
         } else {
-            logger.debug("Free space map for table " + tableName + " does not exist - creating new one.");
+            logger.warn("Free space map for table " + tableName + " does not exist - creating new one.");
             prepareNewFsmFile = true;
         }
 

@@ -81,6 +81,12 @@
     </classes>
   </test>
 
+  <test name="assignment6-tests">
+    <classes>
+      <class name="edu.caltech.test.nanodb.writeahead.TestSingleDataPageWal" />
+    </classes>
+  </test>
+
   <!--
   <test name="index-tests">
     <classes>

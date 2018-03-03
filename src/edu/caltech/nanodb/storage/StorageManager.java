@@ -314,7 +314,7 @@ public class StorageManager {
         }
 
         // Save all tables
-        tableManager.saveAllTablesInfo();
+        tableManager.saveAllTablesFSM();
         tableManager.closeAllTables();
 
         if (transactionManager != null)

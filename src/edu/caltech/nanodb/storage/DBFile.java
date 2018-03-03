@@ -155,6 +155,18 @@ public class DBFile {
     }
 
 
+    /**
+     * Given the absolute offset in a file, this method returns the page number
+     * that the offset belongs in.
+     *
+     * @param offset the offset in the file.
+     * @return the page that the offset is in.
+     */
+    public int offsetToPageNo(int offset) {
+        return offset / pageSize;
+    }
+
+
 
     /**
      * Constructs a new object from the specified information, and opens the

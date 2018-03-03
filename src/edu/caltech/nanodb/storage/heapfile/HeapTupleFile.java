@@ -378,6 +378,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
 
         DataPage.sanityCheck(dbPage);
+        storageManager.logDBPageWrite(dbPage);
         fsmFile.updateFreeSpace(pageNo, DataPage.getFreeSpaceInPage(dbPage));
 
         return pageTup;
@@ -414,6 +415,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+        storageManager.logDBPageWrite(dbPage);
         fsmFile.updateFreeSpace(dbPage.getPageNo(), DataPage.getFreeSpaceInPage(dbPage));
     }
 
@@ -433,6 +435,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
         DBPage dbPage = ptup.getDBPage();
         DataPage.deleteTuple(dbPage, ptup.getSlot());
         DataPage.sanityCheck(dbPage);
+        storageManager.logDBPageWrite(dbPage);
         fsmFile.updateFreeSpace(dbPage.getPageNo(), DataPage.getFreeSpaceInPage(dbPage));
 
         // Note that we don't invalidate the page-tuple when it is deleted,
