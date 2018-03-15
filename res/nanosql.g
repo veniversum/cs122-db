@@ -5,6 +5,8 @@ header {
    */
   package edu.caltech.nanodb.sqlparse;
 
+  import java.math.BigDecimal;
+
   import java.util.ArrayList;
   import java.util.List;
 
@@ -311,6 +313,7 @@ column_type returns [ColumnType ct]
   }
   :
     ( TYPE_INT | TYPE_INTEGER ) { ct = new ColumnType(SQLDataType.INTEGER); }
+  | TYPE_NUMERIC { ct = new ColumnType(SQLDataType.NUMERIC); }
   | TYPE_BIGINT { ct = new ColumnType(SQLDataType.BIGINT); }
   | TYPE_FLOAT { ct = new ColumnType(SQLDataType.FLOAT); }
   | TYPE_DOUBLE { ct = new ColumnType(SQLDataType.DOUBLE); }
@@ -1107,7 +1110,7 @@ literal_expr returns [Expression e]
   | ival:INT_LITERAL    { e = new LiteralValue(Integer.valueOf(ival.getText())); }
   | lval:LONG_LITERAL   { e = new LiteralValue(Long.valueOf(lval.getText())); }
   | fval:FLOAT_LITERAL  { e = new LiteralValue(new Float(fval.getText())); }
-  | dval:DEC_LITERAL    { e = new LiteralValue(new Double(dval.getText())); }
+  | dval:DEC_LITERAL    { e = new LiteralValue(new BigDecimal(dval.getText())); }
   | sval:STRING_LITERAL { e = new LiteralValue(sval.getText()); }
   ;
 

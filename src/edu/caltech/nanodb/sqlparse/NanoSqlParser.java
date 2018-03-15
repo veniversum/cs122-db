@@ -6,6 +6,8 @@
    */
   package edu.caltech.nanodb.sqlparse;
 
+  import java.math.BigDecimal;
+
   import java.util.ArrayList;
   import java.util.List;
 
@@ -1869,6 +1871,12 @@ public NanoSqlParser(ParserSharedInputState state) {
 				ct = new ColumnType(SQLDataType.INTEGER);
 				break;
 			}
+			case TYPE_NUMERIC:
+			{
+				match(TYPE_NUMERIC);
+				ct = new ColumnType(SQLDataType.NUMERIC);
+				break;
+			}
 			case TYPE_BIGINT:
 			{
 				match(TYPE_BIGINT);
@@ -2155,7 +2163,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			{
 				dval = LT(1);
 				match(DEC_LITERAL);
-				e = new LiteralValue(new Double(dval.getText()));
+				e = new LiteralValue(new BigDecimal(dval.getText()));
 				break;
 			}
 			case STRING_LITERAL:
