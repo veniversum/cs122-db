@@ -1,11 +1,10 @@
 package edu.caltech.nanodb.expressions;
 
 
-import edu.caltech.nanodb.relations.ColumnInfo;
-import edu.caltech.nanodb.relations.ColumnType;
-import edu.caltech.nanodb.relations.SQLDataType;
-import edu.caltech.nanodb.relations.Schema;
-import edu.caltech.nanodb.relations.SchemaNameException;
+import edu.caltech.nanodb.relations.*;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 
 /**
@@ -154,8 +153,9 @@ public class ArithmeticOperator extends Expression {
         TypeConverter.Pair coerced = TypeConverter.coerceArithmetic(aObj, bObj);
 
         Object result;
-
-        if (coerced.value1 instanceof Double) {
+        if (coerced.value1 instanceof BigDecimal) {
+            result = evalNumerics(type, (BigDecimal) coerced.value1, (BigDecimal) coerced.value2);
+        } else if (coerced.value1 instanceof Double) {
             result = evalDoubles(type, (Double) coerced.value1, (Double) coerced.value2);
         }
         else if (coerced.value1 instanceof Float) {
@@ -172,6 +172,57 @@ public class ArithmeticOperator extends Expression {
         return result;
     }
 
+    /**
+     * This helper implements the arithmetic operations for <tt>Double</tt>
+     * values.  Note that division of two <tt>Double</tt>s will produce a
+     * <tt>Double</tt>.
+     *
+     * @param type the arithmetic operation to perform
+     * @param aObj the first operand value for the operation
+     * @param bObj the second operand value for the operation
+     * @return the result of the arithmetic operation
+     * @throws ExpressionException if the operand type is unrecognized
+     */
+    private static BigDecimal evalNumerics(Type type, BigDecimal aObj, BigDecimal bObj) {
+        BigDecimal result;
+
+        switch (type) {
+            case ADD:
+                result = aObj.add(bObj);
+                break;
+
+            case SUBTRACT:
+                result = aObj.subtract(bObj);
+                break;
+
+            case MULTIPLY:
+                result = aObj.multiply(bObj);
+                break;
+
+            case DIVIDE:
+                // Throws ArithmeticException on division by 0
+                result = aObj.divide(bObj, RoundingMode.HALF_EVEN);
+                break;
+
+            case REMAINDER:
+                result = aObj.remainder(bObj);
+                break;
+
+            case POWER:
+                // TODO:  How to handle non-integer exponents?? Taylor expansion of exp(b * ln(a))?
+                try {
+                    result = aObj.pow(bObj.intValueExact());
+                } catch (ArithmeticException e) {
+                    throw new ExpressionException("Unsupported exponent of " + bObj);
+                }
+                break;
+
+            default:
+                throw new ExpressionException("Unrecognized arithmetic type " + type);
+        }
+
+        return result;
+    }
 
     /**
      * This helper implements the arithmetic operations for <tt>Double</tt>

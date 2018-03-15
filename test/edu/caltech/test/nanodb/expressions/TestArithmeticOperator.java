@@ -1,11 +1,12 @@
 package edu.caltech.test.nanodb.expressions;
 
 
-import org.testng.annotations.Test;
-
 import edu.caltech.nanodb.expressions.ArithmeticOperator;
 import edu.caltech.nanodb.expressions.ArithmeticOperator.Type;
 import edu.caltech.nanodb.expressions.LiteralValue;
+import org.testng.annotations.Test;
+
+import java.math.BigDecimal;
 
 
 /**
@@ -40,6 +41,7 @@ public class TestArithmeticOperator {
         new TestOperation(Type.ADD, new Float(2.5), new Float(3.25), new Float(5.75)),
         new TestOperation(Type.ADD, new Long(14), new Long(38), new Long(52)),
         new TestOperation(Type.ADD, new Double(-3.5), new Double(9.0), new Double(5.5)),
+            new TestOperation(Type.ADD, new BigDecimal(-3.5), new BigDecimal(9.0), new BigDecimal(5.5)),
 
         // Addition with casting
 
@@ -59,7 +61,19 @@ public class TestArithmeticOperator {
         new TestOperation(Type.ADD, new Double(2.5), new Long(4), new Double(6.5)),
 
         new TestOperation(Type.ADD, new Double(3.5), new Float(4.75), new Double(8.25)),
-        new TestOperation(Type.ADD, new Float(2.5), new Double(1.25), new Double(3.75))
+        new TestOperation(Type.ADD, new Float(2.5), new Double(1.25), new Double(3.75)),
+
+        new TestOperation(Type.ADD, new Integer(3), new BigDecimal(4.5), new BigDecimal(7.5)),
+        new TestOperation(Type.ADD, new BigDecimal(2.5), new Integer(4), new BigDecimal(6.5)),
+
+        new TestOperation(Type.ADD, new Long(3), new BigDecimal(4.5), new BigDecimal(7.5)),
+        new TestOperation(Type.ADD, new BigDecimal(2.5), new Long(4), new BigDecimal(6.5)),
+
+        new TestOperation(Type.ADD, new BigDecimal(3.5), new Float(4.75), new BigDecimal(8.25)),
+        new TestOperation(Type.ADD, new Float(2.5), new BigDecimal(1.25), new BigDecimal(3.75)),
+
+        new TestOperation(Type.ADD, new Double(3.5), new BigDecimal(4.75), new BigDecimal(8.25)),
+        new TestOperation(Type.ADD, new BigDecimal(2.5), new Double(1.25), new BigDecimal(3.75))
     };
 
 
@@ -69,6 +83,7 @@ public class TestArithmeticOperator {
         new TestOperation(Type.SUBTRACT, new Float(2.5), new Float(3.25), new Float(-0.75)),
         new TestOperation(Type.SUBTRACT, new Long(14), new Long(38), new Long(-24)),
         new TestOperation(Type.SUBTRACT, new Double(-3.5), new Double(9.0), new Double(-12.5)),
+        new TestOperation(Type.SUBTRACT, new BigDecimal(-3.5), new BigDecimal(9.0), new BigDecimal(-12.5)),
 
         // Subtraction with casting
 
@@ -88,7 +103,19 @@ public class TestArithmeticOperator {
         new TestOperation(Type.SUBTRACT, new Double(2.5), new Long(4), new Double(-1.5)),
 
         new TestOperation(Type.SUBTRACT, new Double(3.5), new Float(4.75), new Double(-1.25)),
-        new TestOperation(Type.SUBTRACT, new Float(2.5), new Double(1.25), new Double(1.25))
+        new TestOperation(Type.SUBTRACT, new Float(2.5), new Double(1.25), new Double(1.25)),
+
+        new TestOperation(Type.SUBTRACT, new Integer(3), new BigDecimal(4.5), new BigDecimal(-1.5)),
+        new TestOperation(Type.SUBTRACT, new BigDecimal(2.5), new Integer(4), new BigDecimal(-1.5)),
+
+        new TestOperation(Type.SUBTRACT, new Long(3), new BigDecimal(4.5), new BigDecimal(-1.5)),
+        new TestOperation(Type.SUBTRACT, new BigDecimal(2.5), new Long(4), new BigDecimal(-1.5)),
+
+        new TestOperation(Type.SUBTRACT, new BigDecimal(3.5), new Float(4.75), new BigDecimal(-1.25)),
+        new TestOperation(Type.SUBTRACT, new Float(2.5), new BigDecimal(1.25), new BigDecimal(1.25)),
+
+        new TestOperation(Type.SUBTRACT, new Double(3.5), new BigDecimal(4.75), new BigDecimal(-1.25)),
+        new TestOperation(Type.SUBTRACT, new BigDecimal(2.5), new Double(1.25), new BigDecimal(1.25))
     };
 
 
@@ -98,6 +125,7 @@ public class TestArithmeticOperator {
         new TestOperation(Type.MULTIPLY, new Float(2.5), new Float(3.25), new Float(8.125)),
         new TestOperation(Type.MULTIPLY, new Long(14), new Long(38), new Long(532)),
         new TestOperation(Type.MULTIPLY, new Double(-3.5), new Double(9.0), new Double(-31.5)),
+        new TestOperation(Type.MULTIPLY, new BigDecimal(-3.5), new BigDecimal(9.0), new BigDecimal(-31.5)),
 
         // Subtraction with casting
 
@@ -117,7 +145,19 @@ public class TestArithmeticOperator {
         new TestOperation(Type.MULTIPLY, new Double(2.5), new Long(4), new Double(10)),
 
         new TestOperation(Type.MULTIPLY, new Double(3.5), new Float(4.75), new Double(16.625)),
-        new TestOperation(Type.MULTIPLY, new Float(2.5), new Double(1.25), new Double(3.125))
+        new TestOperation(Type.MULTIPLY, new Float(2.5), new Double(1.25), new Double(3.125)),
+
+        new TestOperation(Type.MULTIPLY, new Integer(3), new BigDecimal(4.5), new BigDecimal(13.5)),
+        new TestOperation(Type.MULTIPLY, new BigDecimal(2.5), new Integer(4), new BigDecimal(10.0f)),
+
+        new TestOperation(Type.MULTIPLY, new Long(3), new BigDecimal(4.5), new BigDecimal(13.5)),
+        new TestOperation(Type.MULTIPLY, new BigDecimal(2.5), new Long(4), new BigDecimal(10.0f)),
+
+        new TestOperation(Type.MULTIPLY, new BigDecimal(3.5), new Float(4.75), new BigDecimal(16.625)),
+        new TestOperation(Type.MULTIPLY, new Float(2.5), new BigDecimal(1.25), new BigDecimal(3.125)),
+
+        new TestOperation(Type.MULTIPLY, new Double(3.5), new BigDecimal(4.75), new BigDecimal(16.625)),
+        new TestOperation(Type.MULTIPLY, new BigDecimal(2.5), new Double(1.25), new BigDecimal(3.125))
     };
 
 
@@ -182,7 +222,7 @@ public class TestArithmeticOperator {
     }
 
     private void checkTestResult(TestOperation test, Object actual) {
-        assert actual.equals(test.result) : "Actual result " + actual +
+        assert ((Comparable)actual).compareTo(test.result) == 0 : "Actual result " + actual +
             " doesn't match expected value " + test.result;
     }
 }
