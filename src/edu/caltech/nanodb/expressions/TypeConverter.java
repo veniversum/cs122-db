@@ -1,10 +1,11 @@
 package edu.caltech.nanodb.expressions;
 
 
-import java.util.HashMap;
-
 import edu.caltech.nanodb.relations.ColumnType;
 import edu.caltech.nanodb.relations.SQLDataType;
+
+import java.math.BigDecimal;
+import java.util.HashMap;
 
 
 /**
@@ -37,6 +38,7 @@ public class TypeConverter {
         sqlTypeMapping.put(Short.class, SQLDataType.SMALLINT);
         sqlTypeMapping.put(Integer.class, SQLDataType.INTEGER);
         sqlTypeMapping.put(Long.class, SQLDataType.BIGINT);
+        sqlTypeMapping.put(BigDecimal.class, SQLDataType.NUMERIC);
 
         sqlTypeMapping.put(Float.class, SQLDataType.FLOAT);
         sqlTypeMapping.put(Double.class, SQLDataType.DOUBLE);
@@ -199,6 +201,46 @@ public class TypeConverter {
         else {
             throw new TypeCastException("Cannot convert type \"" +
                 obj.getClass() + "\" to short.");
+        }
+
+        return result;
+    }
+
+    /**
+     * This method attempts to convert the input value into a
+     * {@link java.math.BigDecimal} value.  If the input is a number then the result
+     * is generated from the {@link java.lang.Number#shortValue} method,
+     * possibly causing truncation or overflow to occur.  If the input is a
+     * {@link java.lang.String} that can be parsed into a BigDecimal then the result
+     * is the parsed value.  If none of these cases hold then a
+     * {@link TypeCastException} is thrown.
+     *
+     * @param obj the input value to cast
+     * @return the input value cast to a <tt>BigDecimal</tt>
+     * @throws TypeCastException if the input value cannot be cast to a short.
+     */
+    public static BigDecimal getNumericValue(Object obj) {
+        if (obj == null)
+            return null;
+
+        BigDecimal result;
+
+        if (obj instanceof BigDecimal) {
+            result = (BigDecimal) obj;
+        } else if (obj instanceof Number) {
+            Number num = (Number) obj;
+            // This is how Apache commons does it.
+            // Alternatively, we could convert the Number to string and parse that.
+            result = new BigDecimal(num.doubleValue());
+        } else if (obj instanceof String) {
+            try {
+                result = new BigDecimal((String) obj);
+            } catch (NumberFormatException nfe) {
+                throw new TypeCastException("Cannot convert string to numeric.", nfe);
+            }
+        } else {
+            throw new TypeCastException("Cannot convert type \"" +
+                    obj.getClass() + "\" to numeric.");
         }
 
         return result;
@@ -434,7 +476,11 @@ public class TypeConverter {
 
         if (obj1 != null && obj2 != null) {
             if (obj1 instanceof Number || obj2 instanceof Number) {
-                if (obj1 instanceof Double || obj2 instanceof Double) {
+                if (obj1 instanceof BigDecimal || obj2 instanceof BigDecimal) {
+                    // At least one is a Double, so convert both to Doubles.
+                    obj1 = getNumericValue(obj1);
+                    obj2 = getNumericValue(obj2);
+                } else if (obj1 instanceof Double || obj2 instanceof Double) {
                     // At least one is a Double, so convert both to Doubles.
                     obj1 = getDoubleValue(obj1);
                     obj2 = getDoubleValue(obj2);

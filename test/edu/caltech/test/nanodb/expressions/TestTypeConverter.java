@@ -1,11 +1,12 @@
 package edu.caltech.test.nanodb.expressions;
 
 
-import org.testng.annotations.*;
-
 import edu.caltech.nanodb.expressions.TypeCastException;
 import edu.caltech.nanodb.expressions.TypeConverter;
 import edu.caltech.nanodb.relations.SQLDataType;
+import org.testng.annotations.Test;
+
+import java.math.BigDecimal;
 
 
 /**
@@ -185,6 +186,30 @@ public class TestTypeConverter {
         TypeConverter.getDoubleValue("123a");
     }
 
+    public void testGetNumericValue() {
+        assert TypeConverter.getNumericValue(null) == null;
+        String bigValue = "58492120288037320219038549832299345628928881444646826689909516945729594392289673.45440414025902702589104305098491004899924226103962154055689440199212653072122312826739766574099086362805812513351583362";
+        assert new BigDecimal(bigValue).equals(TypeConverter.getNumericValue(new BigDecimal(bigValue)));
+
+        assert new BigDecimal(3).equals(TypeConverter.getNumericValue(3L));
+        assert new BigDecimal(15).equals(TypeConverter.getNumericValue("15"));
+        assert new BigDecimal(21.234f).equals(TypeConverter.getNumericValue(21.234f));
+    }
+
+    @Test(expectedExceptions = {TypeCastException.class})
+    public void testGetNumericFromBooleanError() {
+        TypeConverter.getIntegerValue(Boolean.TRUE);
+    }
+
+    @Test(expectedExceptions = {TypeCastException.class})
+    public void testGetNumericFromObjectError() {
+        TypeConverter.getIntegerValue(new Object());
+    }
+
+    @Test(expectedExceptions = {TypeCastException.class})
+    public void testGetNumericFromStringError() {
+        TypeConverter.getIntegerValue("123a");
+    }
 
     public void testGetSQLType() {
         // Recognized types:
@@ -195,6 +220,7 @@ public class TestTypeConverter {
         assert TypeConverter.getSQLType(new Short((short) 3)) == SQLDataType.SMALLINT;
         assert TypeConverter.getSQLType(new Integer(3)) == SQLDataType.INTEGER;
         assert TypeConverter.getSQLType(new Long(3)) == SQLDataType.BIGINT;
+        assert TypeConverter.getSQLType(new BigDecimal(3)) == SQLDataType.NUMERIC;
 
         assert TypeConverter.getSQLType(new Float(3.0f)) == SQLDataType.FLOAT;
         assert TypeConverter.getSQLType(new Double(3.0)) == SQLDataType.DOUBLE;
