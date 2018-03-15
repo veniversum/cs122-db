@@ -349,7 +349,7 @@ public abstract class PageTuple implements Tuple {
         // VARCHAR is special - the storage size depends on the size of the
         // data value being stored.  In this case, read out the data length.
         int dataLength = 0;
-        if (colType.getBaseType() == SQLDataType.VARCHAR)
+        if (colType.getBaseType() == SQLDataType.VARCHAR || colType.getBaseType() == SQLDataType.NUMERIC)
             dataLength = dbPage.readUnsignedShort(valueOffset);
 
         return getStorageSize(colType, dataLength);
@@ -430,6 +430,10 @@ public abstract class PageTuple implements Tuple {
             case FILE_POINTER:
                 value = new FilePointer(dbPage.readUnsignedShort(offset),
                                         dbPage.readUnsignedShort(offset + 2));
+                break;
+
+            case NUMERIC:
+                value = dbPage.readNumeric(offset);
                 break;
 
             default:
@@ -552,7 +556,12 @@ public abstract class PageTuple implements Tuple {
          */
 
         final ColumnType columnType = schema.getColumnInfo(iCol).getType();
-        final int newDataLength = getStorageSize(columnType, TypeConverter.getStringValue(value).length());
+        int datalength = 0;
+        if (columnType.getBaseType() == SQLDataType.VARCHAR)
+            datalength = TypeConverter.getStringValue(value).length();
+        else if (columnType.getBaseType() == SQLDataType.NUMERIC)
+            datalength = TypeConverter.getNumericValue(value).unscaledValue().bitLength() / 8 + 1;
+        final int newDataLength = getStorageSize(columnType, datalength);
         int offset;
         final int deltaLength;
         // Initialize curDataLength and offset, we have to handle it
@@ -679,6 +688,10 @@ public abstract class PageTuple implements Tuple {
             size = 4;
             break;
 
+        case NUMERIC:
+            size = 6 + dataLength;
+            break;
+
         default:
             throw new UnsupportedOperationException(
                 "Cannot currently store type " + colType.getBaseType());
@@ -731,8 +744,9 @@ public abstract class PageTuple implements Tuple {
                     String strValue = TypeConverter.getStringValue(value);
                     dataLength = strValue.length();
                 }
-
-                storageSize += getStorageSize(colType, dataLength);
+                if (colType.getBaseType() == SQLDataType.NUMERIC) {
+                    storageSize += 6 + TypeConverter.getNumericValue(value).unscaledValue().bitLength() / 8 + 1;
+                }
             }
 
             iCol++;

@@ -3,6 +3,8 @@ package edu.caltech.nanodb.storage;
 
 import edu.caltech.nanodb.relations.ColumnType;
 
+import java.math.BigDecimal;
+
 /**
  * This class facilitates sequences of read operations against a single
  * {@link DBPage} object, by providing "position" state that is also updated
@@ -198,6 +200,12 @@ public class PageReader {
         return Double.longBitsToDouble(readLong());
     }
 
+    public BigDecimal readNumeric() {
+        BigDecimal value = dbPage.readNumeric(position);
+        position += 6 + value.unscaledValue().bitLength() / 8 + 1;
+        return value;
+    }
+
 
     /**
      * This method reads and returns a variable-length string whose maximum
@@ -280,6 +288,10 @@ public class PageReader {
         case VARCHAR:
             // TODO:  Assume it's always stored as a 64KB varchar, not 256B.
             position += 2 + ((String) value).length();
+            break;
+
+        case NUMERIC:
+            position += 6 + ((BigDecimal) value).unscaledValue().bitLength() / 8 + 1;
             break;
 
         default:

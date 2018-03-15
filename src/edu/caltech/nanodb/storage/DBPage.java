@@ -1,8 +1,9 @@
 package edu.caltech.nanodb.storage;
 
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Arrays;
 
 import org.apache.log4j.Logger;
@@ -721,6 +722,23 @@ public class DBPage implements Pinnable, AutoCloseable {
         writeLong(position, Double.doubleToLongBits(value));
     }
 
+    public BigDecimal readNumeric(int position) {
+        int len = readUnsignedShort(position);
+        byte[] bytes = new byte[len];
+        int scale = readInt(position + 2);
+        read(position + 6, bytes);
+        return new BigDecimal(new BigInteger(bytes), scale);
+    }
+
+    public int writeNumeric(int position, BigDecimal value) {
+        byte[] bytes = value.unscaledValue().toByteArray();
+        int scale = value.scale();
+        writeShort(position, bytes.length);
+        writeInt(position + 2, scale);
+        write(position + 6, bytes);
+        return 2 + 4 + bytes.length;
+    }
+
 
     /**
      * This method reads and returns a variable-length string whose maximum
@@ -1022,6 +1040,10 @@ public class DBPage implements Pinnable, AutoCloseable {
                                     readUnsignedShort(position + 2));
             break;
 
+        case NUMERIC:
+            value = readNumeric(position);
+            break;
+
         default:
             throw new UnsupportedOperationException(
                 "Cannot currently read type " + colType.getBaseType());
@@ -1135,6 +1157,13 @@ public class DBPage implements Pinnable, AutoCloseable {
                 writeShort(position, fptr.getPageNo());
                 writeShort(position + 2, fptr.getOffset());
                 dataSize = 4;
+                break;
+            }
+
+        case NUMERIC:
+            {
+                BigDecimal val = TypeConverter.getNumericValue(value);
+                dataSize = writeNumeric(position, val);
                 break;
             }
 

@@ -3,6 +3,8 @@ package edu.caltech.nanodb.storage;
 
 import edu.caltech.nanodb.relations.ColumnType;
 
+import java.math.BigDecimal;
+
 
 /**
  * This class extends the {@link PageReader} class to provide write operations
@@ -68,6 +70,10 @@ public class PageWriter extends PageReader
 
     public void writeDouble(double v) {
         writeLong(Double.doubleToLongBits(v));
+    }
+
+    public void writeNumeric(BigDecimal v) {
+        position += dbPage.writeNumeric(position, v);
     }
 
 
