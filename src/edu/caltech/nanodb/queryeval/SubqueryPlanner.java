@@ -5,8 +5,10 @@ import edu.caltech.nanodb.expressions.SubqueryExpressionProcessor;
 import edu.caltech.nanodb.expressions.SubqueryOperator;
 import edu.caltech.nanodb.plannodes.PlanNode;
 import edu.caltech.nanodb.queryast.SelectClause;
+import org.antlr.stringtemplate.language.Expr;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 public class SubqueryPlanner {
@@ -15,22 +17,31 @@ public class SubqueryPlanner {
 
     private SubqueryExpressionProcessor subExprProc;
 
-    public SubqueryPlanner(AbstractPlannerImpl planner) {
+    private List<SelectClause> enclosingSelectsForSubqueries;
+
+    public SubqueryPlanner(AbstractPlannerImpl planner,
+                           List<SelectClause> enclosingSelectsForSubqueries) {
         this.planner = planner;
+        this.enclosingSelectsForSubqueries = enclosingSelectsForSubqueries;
         this.subExprProc = new SubqueryExpressionProcessor();
     }
 
-    public void planSubqueries(Expression expression,
-                               List<SelectClause> enclosingSelects)
-            throws IOException {
+    public void planSubqueries(Expression expression) throws IOException {
         expression.traverse(this.subExprProc);
         List<SubqueryOperator> subOps = subExprProc.getSubqueryExpressions();
         for (SubqueryOperator subOp : subOps) {
-            PlanNode plan =
-                    planner.makePlan(subOp.getSubquery(), enclosingSelects);
+            PlanNode plan = planner.makePlan(subOp.getSubquery(),
+                    enclosingSelectsForSubqueries);
             subOp.setSubqueryPlan(plan);
         }
         subExprProc.resetSubqueryExpressions();
+    }
+
+    public boolean containsSubqueries(Collection<Expression> expressions) {
+        for (Expression expr : expressions) {
+            if (containsSubqueries(expr)) return true;
+        }
+        return false;
     }
 
     public boolean containsSubqueries(Expression expression) {

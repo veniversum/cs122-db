@@ -119,8 +119,14 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         List<SelectClause> enclosingSelects) throws IOException {
 
         final SimpleExpressionProcessor processor = new SimpleExpressionProcessor();
-        final SubqueryExpressionProcessor subProcessor = new SubqueryExpressionProcessor();
         final List<SelectValue> selectValues = selClause.getSelectValues();
+
+        final List<SelectClause> subqueryEnclosingSelects =
+                Collections.singletonList(selClause);
+        // TODO: Pass all enclosing selects instead of just the parent one?
+//        subqueryEnclosingSelects.addAll(enclosingSelects);
+        final SubqueryPlanner subqueryPlanner =
+                new SubqueryPlanner(this, subqueryEnclosingSelects);
 
         /*
         Process expressions in select values and having clause.
@@ -129,17 +135,15 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         for (SelectValue sv : selectValues) {
             if (sv.isExpression()) {
                 Expression e = sv.getExpression().traverse(processor);
-                e.traverse(subProcessor);
-                for(SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
-                    subOp.setSubqueryPlan(makePlan(subOp.getSubquery(), null));
-                }
-                subProcessor.resetSubqueryExpressions();
+                subqueryPlanner.planSubqueries(e);
                 sv.setExpression(e);
             }
         }
         Expression havingExpr = selClause.getHavingExpr();
-        if (havingExpr != null)
+        if (havingExpr != null) {
             havingExpr = havingExpr.traverse(processor);
+            subqueryPlanner.planSubqueries(havingExpr);
+        }
 
         /*
         Not needed for now since from clause doesn't support correlated subqueries.
@@ -152,13 +156,8 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         /*
         Process subqueries in WHERE clause first.
          */
-        if ( selClause.getWhereExpr() != null) {
-            selClause.getWhereExpr().traverse(subProcessor);
-            for (SubqueryOperator subOp : subProcessor.getSubqueryExpressions()) {
-                subOp.setSubqueryPlan(makePlan(subOp.getSubquery(),
-                        Collections.emptyList()));
-            }
-            subProcessor.resetSubqueryExpressions();
+        if (selClause.getWhereExpr() != null) {
+            subqueryPlanner.planSubqueries(selClause.getWhereExpr());
         }
 
         /*
@@ -238,6 +237,10 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         Process group by clause and aggregate function calls if we need to.
          */
         final List<Expression> groupByExprs = selClause.getGroupByExprs();
+        if (subqueryPlanner.containsSubqueries(groupByExprs)) {
+            throw new ExpressionException("Group by clause contains a " +
+                    "subquery!");
+        }
         if (groupByExprs.size() > 0 || !processor.getRenamedFunctionCallMap().isEmpty())
             node = new HashedGroupAggregateNode(node, groupByExprs, processor.getRenamedFunctionCallMap());
 
@@ -258,6 +261,12 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         Sort the results if we need to.
          */
         final List<OrderByExpression> orderByExprs = selClause.getOrderByExprs();
+        for (OrderByExpression orderExpr : orderByExprs) {
+            if (subqueryPlanner.containsSubqueries(orderExpr.getExpression())) {
+                throw new ExpressionException("Order by clause contains a " +
+                        "subquery!");
+            }
+        }
         if (orderByExprs.size() > 0)
             node = new SortNode(node, orderByExprs);
 
