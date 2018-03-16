@@ -16,8 +16,8 @@ A2.  Specify the repository URL, tag name and commit-hash of the Git version
      of your repository tags with this command:  git show-ref --tags)
 
     Repository URL:  git@github.com:veniversum/cs122-db.git
-    Tag name:        subqueries
-    Commit hash:     4c46d34de90ba5fd76ff1d61a3429dc5971bc491
+    Tag name:        subquery
+    Commit hash:     55d2ecbe097646cca1c0ab91fff83aeba9048310
 
 A3.  Specify any late tokens you are applying to this assignment, or
      "none" if no late tokens.
