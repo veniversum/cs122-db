@@ -397,7 +397,8 @@ public class Schema implements Serializable, Iterable<ColumnInfo> {
 
     public int getColumnIndex(ColumnName colName) {
         if (colName.isColumnWildcard())
-            throw new IllegalArgumentException("colName cannot be a wildcard");
+            throw new IllegalArgumentException("colName cannot be a wildcard ("
+                    + colName.toString() + ")");
 
         return getColumnIndex(colName.getTableName(), colName.getColumnName());
     }

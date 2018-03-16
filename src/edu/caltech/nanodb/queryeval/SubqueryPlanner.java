@@ -27,6 +27,13 @@ public class SubqueryPlanner {
         this.subExprProc = new SubqueryExpressionProcessor();
     }
 
+    public List<SubqueryOperator> extractSubqueries(Expression expression) {
+        expression.traverse(this.subExprProc);
+        List<SubqueryOperator> subOps = subExprProc.getSubqueryExpressions();
+        subExprProc.resetSubqueryExpressions();
+        return subOps;
+    }
+
     public Environment planSubqueries(Expression expression)
             throws IOException {
         Environment environment = new Environment();
@@ -36,15 +43,13 @@ public class SubqueryPlanner {
     public Environment planSubqueries(Expression expression,
                                       Environment environment)
             throws IOException {
-        expression.traverse(this.subExprProc);
-        List<SubqueryOperator> subOps = subExprProc.getSubqueryExpressions();
+        List<SubqueryOperator> subOps = extractSubqueries(expression);
         for (SubqueryOperator subOp : subOps) {
             PlanNode plan = planner.makePlan(subOp.getSubquery(),
                     enclosingSelectsForSubqueries);
             plan.addParentEnvironmentToPlanTree(environment);
             subOp.setSubqueryPlan(plan);
         }
-        subExprProc.resetSubqueryExpressions();
         if (subOps.isEmpty()) return null;
         else return environment;
     }

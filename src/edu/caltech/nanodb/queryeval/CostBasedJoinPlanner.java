@@ -9,6 +9,7 @@ import edu.caltech.nanodb.queryast.SelectValue;
 import edu.caltech.nanodb.relations.JoinType;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.TableInfo;
+import javafx.util.Pair;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -117,6 +118,8 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
      */
     public PlanNode makePlan(SelectClause selClause,
         List<SelectClause> enclosingSelects) throws IOException {
+
+        selClause = decorrelateSelectScalar(selClause);
 
         final SimpleExpressionProcessor processor = new SimpleExpressionProcessor();
         final List<SelectValue> selectValues = selClause.getSelectValues();
@@ -290,6 +293,83 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
          */
         node.prepare();
         return node;
+    }
+
+    private SelectClause decorrelateSelectScalar(SelectClause selectClause)
+            throws IOException {
+
+        List<Pair<FromClause, Expression>> joinPairs = new ArrayList<>();
+
+        for (SelectValue sv : selectClause.getSelectValues()) {
+            if (!sv.isExpression()) continue;
+            if (!(sv.getExpression() instanceof SubqueryOperator)) continue;
+            SubqueryOperator subOp = (SubqueryOperator) sv.getExpression();
+            SelectClause subquerySelect = subOp.getSubquery();
+
+            if (subquerySelect.getSelectValues().size() != 1) continue;
+
+            SelectValue selVal = subquerySelect.getSelectValues().get(0);
+            FromClause fromClause = subquerySelect.getFromClause();
+            String tableName = fromClause.getTableName();
+            Expression whereExpr = subquerySelect.getWhereExpr();
+            if (!(selVal.isSimpleColumnValue())) continue;
+            if (fromClause == null || !fromClause.isBaseTable()) continue;
+            if (!(whereExpr instanceof CompareOperator)) continue;
+
+            ColumnValue originalColVal = (ColumnValue) selVal.getExpression();
+            CompareOperator compOp = (CompareOperator) whereExpr;
+            if (compOp.getType() != CompareOperator.Type.EQUALS) continue;
+
+            Expression leftExpr = compOp.getLeftExpression();
+            Expression rightExpr = compOp.getRightExpression();
+            if (!(leftExpr instanceof ColumnValue)
+                    || !(rightExpr instanceof ColumnValue)) continue;
+
+            ColumnValue leftColVal = (ColumnValue) leftExpr;
+            ColumnValue rightColVal = (ColumnValue) rightExpr;
+
+            if (leftColVal.getColumnName().getTableName()
+                    .equals(rightColVal.getColumnName().getTableName()))
+                continue;
+
+            ColumnValue localColVal;
+            if (leftColVal.getColumnName().getTableName().equals(tableName))
+                localColVal = leftColVal;
+            else if (rightColVal.getColumnName().getTableName()
+                    .equals(tableName))
+                localColVal = rightColVal;
+            else continue;
+
+            localColVal.getColumnName().setTableName("xxxxxx");
+
+            FromClause newFromClause = new FromClause(tableName, "xxxxxx");
+            newFromClause.computeSchema(storageManager.getTableManager());
+            joinPairs.add(new Pair<>(newFromClause, whereExpr));
+
+            if (subquerySelect.isTrivialProject()) {
+                ColumnValue newColVal =
+                        new ColumnValue(new ColumnName("xxxxxx",
+                                selVal.getAlias()));
+                sv.setExpression(newColVal);
+            } else {
+                originalColVal.getColumnName().setTableName("xxxxxx");
+                sv.setExpression(originalColVal);
+            }
+
+        }
+
+        FromClause currentLeftFromClause = selectClause.getFromClause();
+        for (Pair<FromClause, Expression> joinPair : joinPairs) {
+            FromClause newFromClause =
+                    new FromClause(currentLeftFromClause, joinPair.getKey(),
+                            JoinType.LEFT_OUTER);
+            newFromClause.setOnExpression(joinPair.getValue());
+            currentLeftFromClause = newFromClause;
+        }
+        selectClause.setFromClause(currentLeftFromClause);
+
+        return selectClause;
+
     }
 
     /**
@@ -491,7 +571,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
     private PlanNode makeLeafPlan(FromClause fromClause,
         Collection<Expression> conjuncts, HashSet<Expression> leafConjuncts)
         throws IOException {
-        
+
 
         PlanNode node;
         Schema schema;
@@ -558,8 +638,6 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         if (fromClause.isRenamed()) {
             node = new RenameNode(node, fromClause.getResultName());
         }
-
-        // TODO: Try calculating applicable conjuncts after renaming too?
 
         node.prepare();
         return node;
