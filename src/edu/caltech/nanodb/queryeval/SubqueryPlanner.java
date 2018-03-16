@@ -29,8 +29,14 @@ public class SubqueryPlanner {
 
     public Environment planSubqueries(Expression expression)
             throws IOException {
-        expression.traverse(this.subExprProc);
         Environment environment = new Environment();
+        return planSubqueries(expression, environment);
+    }
+
+    public Environment planSubqueries(Expression expression,
+                                      Environment environment)
+            throws IOException {
+        expression.traverse(this.subExprProc);
         List<SubqueryOperator> subOps = subExprProc.getSubqueryExpressions();
         for (SubqueryOperator subOp : subOps) {
             PlanNode plan = planner.makePlan(subOp.getSubquery(),

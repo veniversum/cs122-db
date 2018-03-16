@@ -132,14 +132,17 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         Process expressions in select values and having clause.
         We need to replace aggregate function calls with string identifiers here.
          */
-        List<Environment> selectSubqEnvs = new ArrayList<>();
+        Environment selectSubqEnv = new Environment();
+        boolean selectSubQueriesFound = false;
         for (SelectValue sv : selectValues) {
             if (sv.isExpression()) {
                 Expression e = sv.getExpression().traverse(processor);
-                selectSubqEnvs.add((subqueryPlanner.planSubqueries(e)));
+                if (subqueryPlanner.planSubqueries(e, selectSubqEnv) != null)
+                    selectSubQueriesFound = true;
                 sv.setExpression(e);
             }
         }
+        if (!selectSubQueriesFound) selectSubqEnv = null;
         Expression havingExpr = selClause.getHavingExpr();
         Environment havingSubqEnv = null;
         if (havingExpr != null) {
@@ -259,6 +262,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         if (!selClause.isTrivialProject()) {
             node = new ProjectNode(node, selClause.getSelectValues());
         }
+        if (selectSubqEnv != null) node.setEnvironment(selectSubqEnv);
 
         /*
         Sort the results if we need to.
