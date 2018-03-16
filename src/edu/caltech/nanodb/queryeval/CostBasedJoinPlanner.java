@@ -295,6 +295,16 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         return node;
     }
 
+    /**
+     * Decorrelates scalar queries in the specified select clause. Expected
+     * query form:
+     *    SELECT a, ..., (SELECT ... FROM t2 WHERE c = t1.d) sq FROM t1 ...
+     *    WHERE ...;
+     *
+     * @param selectClause
+     * @return
+     * @throws IOException
+     */
     private SelectClause decorrelateSelectScalar(SelectClause selectClause)
             throws IOException {
 

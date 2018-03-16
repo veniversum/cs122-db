@@ -6,24 +6,28 @@ A:  Logistics
 
 A1.  List your team name and the people who worked on this assignment.
 
-     <team name>
+    <team name>'); DROP TABLE Teams;--
 
-     <name>
-     <name>
-     ...
+    Qingzhuo Aw Young <qingzhuo@caltech.edu>
+    Timur Kuzhagaliyev <timbokz@caltech.edu>
 
 A2.  Specify the repository URL, tag name and commit-hash of the Git version
      you are submitting for your assignment.  (You can list the commit hashes
      of your repository tags with this command:  git show-ref --tags)
 
-     Repository URL:  <url>
-     Tag name:        <tag>
-     Commit hash:     <hash>
+    Repository URL:  git@github.com:veniversum/cs122-db.git
+    Tag name:        <tag>
+    Commit hash:     <hash>
 
 A3.  Specify any late tokens you are applying to this assignment, or
      "none" if no late tokens.
 
+    None
+
 A4.  Briefly describe what parts of the assignment each teammate focused on.
+
+    Timur: Advanced queries
+    Qingzhuo: Numeric data type
 
 B:  Subquery Planning
 ---------------------
@@ -38,9 +42,26 @@ B1.  Which planner did your team add subquery planning to?  How easy or
 B2.  Briefly outline the process by which you perform subquery planning in
      your query planner.  Also explain briefly how your subquery-planner works.
 
+    Since we're building on our existing CostBasedJoinPlanner implementation,
+    much of the logic is the same. The new addition is the usage of
+    SubqueryPlanner - before we used a standalone SubqueryExpressionProcessor
+    which has now been abstracted away into SubqueryPlanner.
+
+    Our SubqueryPlanner follows the logic outlined in the assignment write-up.
+    We use an expression processor to traverse a supplied expression and
+    identify any subqueries. We have different functions for different modes of
+    subquery planning - some initialize query plans, others setup environments,
+    some just check if there are any queries present.
+
 B3.  Briefly describe how you detect whether there are subqueries in the
      GROUP BY and ORDER BY clauses.  How do you make sure this doesn't
      interfere with subqueries in other clauses?
+
+    As mentioned previously, our SubqueryPlanner has a method that checks
+    whether an expression includes subqueries. This is done by simply traversing
+    the expression and its children using an expression processor, without any
+    performing any adjustments. If SubqueryPlanner detects any SubqueryOperators
+    while traversing the expression, we throw an ExpressionException.
 
 C:  Correlated Evaluation
 -------------------------
@@ -49,19 +70,66 @@ C1.  How easy or difficult was it to incorporate support for correlated
      evaluation into your query planner?  Did it affect the sequence of
      steps in any substantial ways?
 
+    It was reasonably hard but doable. Implementing correlated evaluation
+    affected the sequence of steps mostly because we discovered several bugs in
+    our implementation in the process, for example prematurely renaming the
+    output of file scan nodes. Other than that, our initial CostBasedJoinPlanner
+    was quite easy to extend (mostly because we did some work towards
+    supporting subqueries back when we were first implementing it).
+
 D:  Decorrelating Queries
 -------------------------
 
 D1.  Which example query decorrelation did your team choose to implement?
      Why did you choose this query?
 
+    We chose the first example, i.e.:
+
+    SELECT a, ..., (SELECT ... FROM t2 WHERE c = t1.d) sq FROM t1 ... WHERE ...;
+
+    This example combined scalar and a correlated subqueries in one problem, so
+    we found it pretty interesting to work with.
+
 D2.  How does your planner determine whether a query follows the pattern
      that your planner can decorrelate?  How does it identify the components
      of the query in order to decorrelate it?
 
+    We iterate through all of the select values in the select clause that has
+    been passed down to decorrelateSelectScalar() method. We perform multiple
+    to verify that the select value satisfies certain conditions:
+        - It is a subquery
+        - It's select clause contains a single select value
+        - This child select value is a simple column value
+        - Where clause consists of a single comparison operator
+        - This comparison operator contains 2 simple column values on each side
+        - Exactly one of these column values references the table in the query
+
+    Components of the query are identified by performing `instanceof` checks and
+    other sanity checks, until we eventually descend to a low enough level where
+    we have all of the necessary references and information.
+
 D3.  Briefly outline the process by which your planner decorrelates the query.
      How does it modify the subquery, and how does it modify the enclosing
      query?
+
+    Once we have confirmed that a SelectValue is a scalar query that satisfies
+    the constraints outlined above, we perform several manipulations. Let T1 be
+    the name of the original table the scalar subquery was using.
+
+    First, we generate a unique temporary table name. We extract the original
+    comparison operator from the scalar subquery and replace T1 on the relevant
+    ColumnValue from said operator with the name of the temporary table. We then
+    store this comparison operator (expression) in a list.
+
+    Then, we create a new FromClause that uses T1 as the base table, and the
+    temporary name we generated as the alias. This from clause is also stored in
+    a list alongside expression from the above paragraph.
+
+    Finally, we overwrite the expression SelectValue, making it a ColumnValue
+    instead of a SubqueryOperator. This column value uses the original column
+    name if the scalar query was not renamed (SELECT T1.a), or an alias if the
+    original query was renamed (SELECT T1.a AS x).
+
 
 E:  Extra Credit [OPTIONAL]
 ---------------------------
@@ -70,12 +138,14 @@ If you implemented any extra-credit tasks for this assignment, describe
 them here.  The description should be like this, with stuff in "<>" replaced.
 (The value i starts at 1 and increments...)
 
-E<i>:  <one-line description>
+E1:  Add a NUMERIC Data Type to NanoDB
 
-     <brief summary of what you did, including the specific classes that
-     we should look at for your implementation>
+     Details are provided in the handout. Truncation is not enforced.
 
-     <brief summary of test-cases that demonstrate/exercise your extra work>
+     Power with non-integer exponents is currently unsupported for numeric type.
+
+     TestTypeConverter         commit:f58df8a6157f574e2b1da458ccb407722bbe6814
+     TestArithmeticOperator    commit:661514b3d41a3022199c9bd2e4c7b067ae621bbf
 
 F:  Feedback [OPTIONAL]
 -----------------------
