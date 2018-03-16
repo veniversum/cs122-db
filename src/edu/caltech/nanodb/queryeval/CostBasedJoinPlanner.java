@@ -132,32 +132,26 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         Process expressions in select values and having clause.
         We need to replace aggregate function calls with string identifiers here.
          */
+        List<Environment> selectSubqEnvs = new ArrayList<>();
         for (SelectValue sv : selectValues) {
             if (sv.isExpression()) {
                 Expression e = sv.getExpression().traverse(processor);
-                subqueryPlanner.planSubqueries(e);
+                selectSubqEnvs.add((subqueryPlanner.planSubqueries(e)));
                 sv.setExpression(e);
             }
         }
         Expression havingExpr = selClause.getHavingExpr();
+        Environment havingSubqEnv = null;
         if (havingExpr != null) {
             havingExpr = havingExpr.traverse(processor);
-            subqueryPlanner.planSubqueries(havingExpr);
+            havingSubqEnv =  subqueryPlanner.planSubqueries(havingExpr);
         }
 
-        /*
-        Not needed for now since from clause doesn't support correlated subqueries.
-         */
-        if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
-//            throw new UnsupportedOperationException(
-//                    "Not implemented:  enclosing queries");
-        }
-
-        /*
-        Process subqueries in WHERE clause first.
-         */
+        // Process subqueries in WHERE clause first.
+        Environment whereSubqEnv = null;
         if (selClause.getWhereExpr() != null) {
-            subqueryPlanner.planSubqueries(selClause.getWhereExpr());
+            whereSubqEnv =
+                    subqueryPlanner.planSubqueries(selClause.getWhereExpr());
         }
 
         /*
@@ -236,6 +230,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
                 node = new SimpleFilterNode(node, selClause.getWhereExpr());
             }
         }
+        if (whereSubqEnv != null) node.setEnvironment(whereSubqEnv);
 
         /*
         Process group by clause and aggregate function calls if we need to.
@@ -245,8 +240,11 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
             throw new ExpressionException("Group by clause contains a " +
                     "subquery!");
         }
-        if (groupByExprs.size() > 0 || !processor.getRenamedFunctionCallMap().isEmpty())
+        if (groupByExprs.size() > 0
+                || !processor.getRenamedFunctionCallMap().isEmpty()) {
             node = new HashedGroupAggregateNode(node, groupByExprs, processor.getRenamedFunctionCallMap());
+            if (havingSubqEnv != null) node.setEnvironment(havingSubqEnv);
+        }
 
         /*
         Filter on the having clause, now that we've evaluated the function calls.
@@ -258,8 +256,9 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         /*
         Project the results if we need to.
          */
-        if (!selClause.isTrivialProject())
+        if (!selClause.isTrivialProject()) {
             node = new ProjectNode(node, selClause.getSelectValues());
+        }
 
         /*
         Sort the results if we need to.

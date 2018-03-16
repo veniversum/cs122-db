@@ -1,5 +1,6 @@
 package edu.caltech.nanodb.queryeval;
 
+import edu.caltech.nanodb.expressions.Environment;
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.expressions.SubqueryExpressionProcessor;
 import edu.caltech.nanodb.expressions.SubqueryOperator;
@@ -26,15 +27,20 @@ public class SubqueryPlanner {
         this.subExprProc = new SubqueryExpressionProcessor();
     }
 
-    public void planSubqueries(Expression expression) throws IOException {
+    public Environment planSubqueries(Expression expression)
+            throws IOException {
         expression.traverse(this.subExprProc);
+        Environment environment = new Environment();
         List<SubqueryOperator> subOps = subExprProc.getSubqueryExpressions();
         for (SubqueryOperator subOp : subOps) {
             PlanNode plan = planner.makePlan(subOp.getSubquery(),
                     enclosingSelectsForSubqueries);
+            plan.addParentEnvironmentToPlanTree(environment);
             subOp.setSubqueryPlan(plan);
         }
         subExprProc.resetSubqueryExpressions();
+        if (subOps.isEmpty()) return null;
+        else return environment;
     }
 
     public boolean containsSubqueries(Collection<Expression> expressions) {
