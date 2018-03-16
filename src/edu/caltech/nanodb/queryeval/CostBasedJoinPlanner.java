@@ -168,7 +168,11 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
         final FromClause fromClause = selClause.getFromClause();
         if(fromClause != null) {
             if (fromClause.isBaseTable()){
-                node = makeSimpleSelect(fromClause.getTableName(), selClause.getWhereExpr(), enclosingSelects);
+                Expression predicate = null;
+                if (!fromClause.isRenamed())
+                    predicate = selClause.getWhereExpr();
+                node = makeSimpleSelect(fromClause.getTableName(), predicate,
+                        enclosingSelects);
             } else if (fromClause.isDerivedTable()) {
                 node = makePlan(fromClause.getSelectClause(), Collections.singletonList(selClause));
             } else {
@@ -228,7 +232,7 @@ public class CostBasedJoinPlanner extends AbstractPlannerImpl {
          */
         if (selClause.getWhereExpr() != null) {
             assert fromClause != null;
-            if (!fromClause.isBaseTable()) {
+            if (!fromClause.isBaseTable() || fromClause.isRenamed()) {
                 node = new SimpleFilterNode(node, selClause.getWhereExpr());
             }
         }
