@@ -416,7 +416,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			e=expression();
 			uc.addValue(name, e);
 			{
-			_loop123:
+			_loop127:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -426,7 +426,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					uc.addValue(name, e);
 				}
 				else {
-					break _loop123;
+					break _loop127;
 				}
 				
 			} while (true);
@@ -653,7 +653,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			tblName=dbobj_ident();
 			c = new AnalyzeCommand(tblName, verbose);
 			{
-			_loop137:
+			_loop141:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -661,7 +661,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					c.addTable(tblName);
 				}
 				else {
-					break _loop137;
+					break _loop141;
 				}
 				
 			} while (true);
@@ -894,7 +894,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			tblName=dbobj_ident();
 			c = new VerifyCommand(tblName);
 			{
-			_loop148:
+			_loop152:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -902,7 +902,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					c.addTable(tblName);
 				}
 				else {
-					break _loop148;
+					break _loop152;
 				}
 				
 			} while (true);
@@ -928,7 +928,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			tblName=dbobj_ident();
 			c = new OptimizeCommand(tblName);
 			{
-			_loop151:
+			_loop155:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -936,7 +936,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					c.addTable(tblName);
 				}
 				else {
-					break _loop151;
+					break _loop155;
 				}
 				
 			} while (true);
@@ -1360,7 +1360,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			colName=dbobj_ident();
 			c.addColumn(colName);
 			{
-			_loop57:
+			_loop61:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -1368,7 +1368,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					c.addColumn(colName);
 				}
 				else {
-					break _loop57;
+					break _loop61;
 				}
 				
 			} while (true);
@@ -1500,7 +1500,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			value=literal_expr();
 			p.set(name.trim().toLowerCase(), value.evaluate());
 			{
-			_loop51:
+			_loop55:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -1510,7 +1510,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					p.set(name.trim().toLowerCase(), value.evaluate());
 				}
 				else {
-					break _loop51;
+					break _loop55;
 				}
 				
 			} while (true);
@@ -1645,7 +1645,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				match(IDENT);
 				c.addColumn(c1.getText());
 				{
-				_loop39:
+				_loop43:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -1654,7 +1654,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						c.addColumn(ci.getText());
 					}
 					else {
-						break _loop39;
+						break _loop43;
 					}
 					
 				} while (true);
@@ -1672,7 +1672,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				match(IDENT);
 				c.addColumn(fkc1.getText());
 				{
-				_loop41:
+				_loop45:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -1681,7 +1681,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						c.addColumn(fkci.getText());
 					}
 					else {
-						break _loop41;
+						break _loop45;
 					}
 					
 				} while (true);
@@ -1700,7 +1700,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					match(IDENT);
 					c.addRefColumn(rtc1.getText());
 					{
-					_loop44:
+					_loop48:
 					do {
 						if ((LA(1)==COMMA)) {
 							match(COMMA);
@@ -1709,7 +1709,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 							c.addRefColumn(rtci.getText());
 						}
 						else {
-							break _loop44;
+							break _loop48;
 						}
 						
 					} while (true);
@@ -1838,6 +1838,8 @@ public NanoSqlParser(ParserSharedInputState state) {
 	public final ColumnType  column_type() throws RecognitionException, TokenStreamException {
 		ColumnType ct;
 		
+		Token  prec = null;
+		Token  scale = null;
 		Token  len = null;
 		Token  len2 = null;
 		
@@ -1875,6 +1877,37 @@ public NanoSqlParser(ParserSharedInputState state) {
 			{
 				match(TYPE_NUMERIC);
 				ct = new ColumnType(SQLDataType.NUMERIC);
+				{
+				_loop31:
+				do {
+					if ((LA(1)==LPAREN)) {
+						match(LPAREN);
+						prec = LT(1);
+						match(INT_LITERAL);
+						ct.setPrecision(Integer.parseInt(prec.getText()));
+						{
+						_loop30:
+						do {
+							if ((LA(1)==COMMA)) {
+								match(COMMA);
+								scale = LT(1);
+								match(INT_LITERAL);
+								ct.setScale(Integer.parseInt(scale.getText()));
+							}
+							else {
+								break _loop30;
+							}
+							
+						} while (true);
+						}
+						match(RPAREN);
+					}
+					else {
+						break _loop31;
+					}
+					
+				} while (true);
+				}
 				break;
 			}
 			case TYPE_BIGINT:
@@ -2236,7 +2269,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				name=dbobj_ident();
 				sc.addWithClause(name, withSC);
 				{
-				_loop69:
+				_loop73:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -2265,7 +2298,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						sc.addWithClause(name, withSC);
 					}
 					else {
-						break _loop69;
+						break _loop73;
 					}
 					
 				} while (true);
@@ -2324,7 +2357,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			sv=select_value();
 			sc.addSelectValue(sv);
 			{
-			_loop72:
+			_loop76:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -2332,7 +2365,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					sc.addSelectValue(sv);
 				}
 				else {
-					break _loop72;
+					break _loop76;
 				}
 				
 			} while (true);
@@ -2397,7 +2430,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				e=expression();
 				sc.addGroupByExpr(e);
 				{
-				_loop77:
+				_loop81:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -2405,7 +2438,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						sc.addGroupByExpr(e);
 					}
 					else {
-						break _loop77;
+						break _loop81;
 					}
 					
 				} while (true);
@@ -2489,7 +2522,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				}
 				sc.addOrderByExpr(new OrderByExpression(e, ascending));
 				{
-				_loop83:
+				_loop87:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -2526,7 +2559,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						sc.addOrderByExpr(new OrderByExpression(e, ascending));
 					}
 					else {
-						break _loop83;
+						break _loop87;
 					}
 					
 				} while (true);
@@ -2774,7 +2807,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 		try {      // for error handling
 			fc=join_expr();
 			{
-			_loop91:
+			_loop95:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -2782,7 +2815,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					fc = new FromClause(fc, next, JoinType.CROSS);
 				}
 				else {
-					break _loop91;
+					break _loop95;
 				}
 				
 			} while (true);
@@ -2836,7 +2869,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 		try {      // for error handling
 			fc=from_expr();
 			{
-			_loop103:
+			_loop107:
 			do {
 				if ((_tokenSet_13.member(LA(1)))) {
 					natural = false; /* Reset for subsequent joins parsed by this rule. */
@@ -2982,7 +3015,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						fc.addUsingName(n);
 						
 						{
-						_loop102:
+						_loop106:
 						do {
 							if ((LA(1)==COMMA)) {
 								match(COMMA);
@@ -2990,7 +3023,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 								fc.addUsingName(n);
 							}
 							else {
-								break _loop102;
+								break _loop106;
 							}
 							
 						} while (true);
@@ -3026,7 +3059,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					}
 				}
 				else {
-					break _loop103;
+					break _loop107;
 				}
 				
 			} while (true);
@@ -3080,7 +3113,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						e=expression();
 						args = new ArrayList<Expression>(); args.add(e);
 						{
-						_loop108:
+						_loop112:
 						do {
 							if ((LA(1)==COMMA)) {
 								match(COMMA);
@@ -3088,7 +3121,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 								args.add(e);
 							}
 							else {
-								break _loop108;
+								break _loop112;
 							}
 							
 						} while (true);
@@ -3257,7 +3290,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				name=dbobj_ident();
 				cols = new ArrayList<String>(); cols.add(name);
 				{
-				_loop117:
+				_loop121:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -3265,7 +3298,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						cols.add(name);
 					}
 					else {
-						break _loop117;
+						break _loop121;
 					}
 					
 				} while (true);
@@ -3307,7 +3340,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 			e=expression();
 			exprs.add(e);
 			{
-			_loop120:
+			_loop124:
 			do {
 				if ((LA(1)==COMMA)) {
 					match(COMMA);
@@ -3315,7 +3348,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					exprs.add(e);
 				}
 				else {
-					break _loop120;
+					break _loop124;
 				}
 				
 			} while (true);
@@ -3409,7 +3442,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 		try {      // for error handling
 			e=logical_and_expr();
 			{
-			_loop168:
+			_loop172:
 			do {
 				if ((LA(1)==OR)) {
 					match(OR);
@@ -3429,7 +3462,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					
 				}
 				else {
-					break _loop168;
+					break _loop172;
 				}
 				
 			} while (true);
@@ -3473,7 +3506,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 				e=expression();
 				exprs.add(e);
 				{
-				_loop165:
+				_loop169:
 				do {
 					if ((LA(1)==COMMA)) {
 						match(COMMA);
@@ -3481,7 +3514,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 						exprs.add(e);
 					}
 					else {
-						break _loop165;
+						break _loop169;
 					}
 					
 				} while (true);
@@ -3519,7 +3552,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 		try {      // for error handling
 			e=logical_not_expr();
 			{
-			_loop171:
+			_loop175:
 			do {
 				if ((LA(1)==AND)) {
 					match(AND);
@@ -3539,7 +3572,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					
 				}
 				else {
-					break _loop171;
+					break _loop175;
 				}
 				
 			} while (true);
@@ -3939,7 +3972,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 		try {      // for error handling
 			e=mult_expr();
 			{
-			_loop192:
+			_loop196:
 			do {
 				if ((LA(1)==MINUS||LA(1)==PLUS)) {
 					{
@@ -3966,7 +3999,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					e = new ArithmeticOperator(mathType, e, e2);
 				}
 				else {
-					break _loop192;
+					break _loop196;
 				}
 				
 			} while (true);
@@ -3995,7 +4028,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 		try {      // for error handling
 			e=unary_op_expr();
 			{
-			_loop196:
+			_loop200:
 			do {
 				if ((LA(1)==STAR||LA(1)==SLASH||LA(1)==PERCENT)) {
 					{
@@ -4028,7 +4061,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					e = new ArithmeticOperator(mathType, e, e2);
 				}
 				else {
-					break _loop196;
+					break _loop200;
 				}
 				
 			} while (true);
@@ -4274,7 +4307,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 					e=expression();
 					args.add(e);
 					{
-					_loop207:
+					_loop211:
 					do {
 						if ((LA(1)==COMMA)) {
 							match(COMMA);
@@ -4282,7 +4315,7 @@ public NanoSqlParser(ParserSharedInputState state) {
 							args.add(e);
 						}
 						else {
-							break _loop207;
+							break _loop211;
 						}
 						
 					} while (true);

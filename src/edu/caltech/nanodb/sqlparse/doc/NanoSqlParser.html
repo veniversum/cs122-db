@@ -378,7 +378,7 @@ Definition of parser NanoSqlParser, which is a subclass of LLkParser.
 		|	TYPE_INTEGER 
 		) 
 		
-	|	TYPE_NUMERIC 
+	|	TYPE_NUMERIC ( LPAREN INT_LITERAL ( COMMA INT_LITERAL )* RPAREN )* 
 	|	TYPE_BIGINT 
 	|	TYPE_FLOAT 
 	|	TYPE_DOUBLE 

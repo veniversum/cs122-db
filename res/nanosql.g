@@ -314,6 +314,9 @@ column_type returns [ColumnType ct]
   :
     ( TYPE_INT | TYPE_INTEGER ) { ct = new ColumnType(SQLDataType.INTEGER); }
   | TYPE_NUMERIC { ct = new ColumnType(SQLDataType.NUMERIC); }
+    (LPAREN prec:INT_LITERAL { ct.setPrecision(Integer.parseInt(prec.getText())); }
+    (COMMA scale:INT_LITERAL { ct.setScale(Integer.parseInt(scale.getText())); } )*
+    RPAREN)*
   | TYPE_BIGINT { ct = new ColumnType(SQLDataType.BIGINT); }
   | TYPE_FLOAT { ct = new ColumnType(SQLDataType.FLOAT); }
   | TYPE_DOUBLE { ct = new ColumnType(SQLDataType.DOUBLE); }

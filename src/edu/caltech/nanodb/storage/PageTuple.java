@@ -745,10 +745,10 @@ public abstract class PageTuple implements Tuple {
                     dataLength = strValue.length();
                 }
                 if (colType.getBaseType() == SQLDataType.NUMERIC) {
-                    storageSize += 6 + TypeConverter.getNumericValue(value).unscaledValue().bitLength() / 8 + 1;
-                } else {
-                    storageSize += getStorageSize(colType, dataLength);
+                    dataLength = TypeConverter.getNumericValue(value).unscaledValue().bitLength() / 8 + 1;
                 }
+
+                storageSize += getStorageSize(colType, dataLength);
             }
 
             iCol++;
